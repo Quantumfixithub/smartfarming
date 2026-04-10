@@ -1,156 +1,86 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Add Animal — SmartFarm</title>
-  <link rel="stylesheet" href="assets/css/app.css">
-</head>
-<body class="shell">
-  <div id="app-shell"></div>
-  <script src="assets/js/app.js"></script>
-  <script src="assets/js/nav.js"></script>
-  <script>
-  SF.requireLogin();
-  buildNav('Add Animal', 'livestock');
-
-  document.getElementById('page-content').innerHTML = `
-  <div class="breadcrumb">
-    <a href="dashboard.html">Dashboard</a> <span>›</span>
-    <a href="livestock.html">Livestock</a> <span>›</span>
-    <span>Add Animal</span>
-  </div>
-
-  <div class="card" style="max-width:700px;margin:0 auto">
-    <div class="card-header">
-      <h3>🐄 Register New Animal</h3>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Add Animal — SmartFarm</title><link rel="stylesheet" href="assets/css/app.css"></head>
+<body class="shell"><div id="app-shell"></div>
+<script src="assets/js/app.js"></script><script src="assets/js/nav.js"></script>
+<script>
+SF.requireLogin();buildShell('Register Animal','livestock');
+const pc=document.getElementById('page-content');
+pc.innerHTML=`
+<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text3);margin-bottom:16px">
+  <a href="dashboard.html" style="color:var(--green-t);font-weight:700;text-decoration:none">Dashboard</a> ›
+  <a href="livestock.html" style="color:var(--green-t);font-weight:700;text-decoration:none">Herd</a> ›
+  <span>Register Animal</span>
+</div>
+<div class="panel" style="max-width:680px">
+  <div class="ph"><span class="ph-title">🐄 Register New Animal</span></div>
+  <div style="padding:20px">
+    <div id="err" class="alert-bar" style="display:none;margin-bottom:16px"></div>
+    <p style="font-size:9px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">Basic Information</p>
+    <div class="form-grid" style="margin-bottom:16px">
+      <div class="form-group"><label class="form-label">Tag ID <span class="req">*</span></label><input type="text" id="tagId" class="form-input" placeholder="e.g. COW-001"></div>
+      <div class="form-group"><label class="form-label">Name</label><input type="text" id="name" class="form-input" placeholder="e.g. Bessie"></div>
+      <div class="form-group"><label class="form-label">Type <span class="req">*</span></label>
+        <select id="type" class="form-select">
+          <option value="">— Select —</option>
+          <option value="cow">🐄 Cow / Cattle</option><option value="goat">🐐 Goat</option>
+          <option value="poultry">🐔 Poultry</option><option value="sheep">🐑 Sheep</option>
+          <option value="pig">🐷 Pig</option><option value="other">🐾 Other</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Breed</label><input type="text" id="breed" class="form-input" placeholder="e.g. Friesian, Boer"></div>
+      <div class="form-group"><label class="form-label">Gender <span class="req">*</span></label>
+        <select id="gender" class="form-select"><option value="">— Select —</option><option value="female">♀ Female</option><option value="male">♂ Male</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Date of Birth</label><input type="date" id="dob" class="form-input"></div>
     </div>
-    <div class="card-body">
-      <div id="err" class="alert alert-error" style="display:none"></div>
-
-      <p style="font-size:13px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--gray-100)">Basic Information</p>
-      <div class="form-grid" style="margin-bottom:16px">
-        <div class="form-group">
-          <label class="form-label">Tag ID <span class="req">*</span></label>
-          <input type="text" id="tagId" class="form-input" placeholder="e.g. COW-001">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Animal Name</label>
-          <input type="text" id="name" class="form-input" placeholder="e.g. Bessie">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Type <span class="req">*</span></label>
-          <select id="type" class="form-select">
-            <option value="">— Select Type —</option>
-            <option value="cow">🐄 Cow</option>
-            <option value="goat">🐐 Goat</option>
-            <option value="poultry">🐔 Poultry</option>
-            <option value="sheep">🐑 Sheep</option>
-            <option value="pig">🐷 Pig</option>
-            <option value="other">🐾 Other</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Breed</label>
-          <input type="text" id="breed" class="form-input" placeholder="e.g. Friesian, Boer">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Gender <span class="req">*</span></label>
-          <select id="gender" class="form-select">
-            <option value="">— Select —</option>
-            <option value="female">♀ Female</option>
-            <option value="male">♂ Male</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Date of Birth</label>
-          <input type="date" id="dob" class="form-input">
-        </div>
+    <p style="font-size:9px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">Physical & Financial</p>
+    <div class="form-grid" style="margin-bottom:16px">
+      <div class="form-group"><label class="form-label">Weight (kg)</label><input type="number" id="weight" class="form-input" step="0.01" placeholder="0.00"></div>
+      <div class="form-group"><label class="form-label">Color</label><input type="text" id="color" class="form-input" placeholder="e.g. Black & White"></div>
+      <div class="form-group"><label class="form-label">Source</label><input type="text" id="source" class="form-input" placeholder="Purchased / Born here"></div>
+      <div class="form-group"><label class="form-label">Purchase Price (₦)</label><input type="number" id="purchasePrice" class="form-input" value="0" step="0.01"></div>
+      <div class="form-group"><label class="form-label">Current Value (₦)</label><input type="number" id="currentValue" class="form-input" value="0" step="0.01"></div>
+      <div class="form-group"><label class="form-label">Health Status</label>
+        <select id="healthStatus" class="form-select">
+          <option value="healthy">✅ Healthy</option><option value="sick">🚨 Sick</option><option value="recovering">💊 Recovering</option>
+        </select>
       </div>
-
-      <p style="font-size:13px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--gray-100)">Physical & Financial</p>
-      <div class="form-grid" style="margin-bottom:16px">
-        <div class="form-group">
-          <label class="form-label">Weight (kg)</label>
-          <input type="number" id="weight" class="form-input" placeholder="0.00" step="0.01">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Color / Markings</label>
-          <input type="text" id="color" class="form-input" placeholder="e.g. Black & White">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Source</label>
-          <input type="text" id="source" class="form-input" placeholder="e.g. Purchased, Born here">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Purchase Price (₦)</label>
-          <input type="number" id="purchasePrice" class="form-input" value="0" step="0.01">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Current Market Value (₦)</label>
-          <input type="number" id="currentValue" class="form-input" value="0" step="0.01">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Health Status</label>
-          <select id="healthStatus" class="form-select">
-            <option value="healthy">✅ Healthy</option>
-            <option value="sick">🤒 Sick</option>
-            <option value="recovering">💊 Recovering</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Reproductive Status</label>
-          <input type="text" id="reproductiveStatus" class="form-input" placeholder="e.g. Pregnant, Lactating">
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Notes</label>
-        <textarea id="notes" class="form-textarea" placeholder="Additional information..."></textarea>
-      </div>
-
-      <div class="form-row" style="margin-top:8px">
-        <button onclick="saveAnimal()" class="btn btn-primary">💾 Save Animal</button>
-        <a href="livestock.html" class="btn btn-secondary">Cancel</a>
-      </div>
+      <div class="form-group"><label class="form-label">Reproductive Status</label><input type="text" id="reproductiveStatus" class="form-input" placeholder="e.g. Pregnant, Lactating"></div>
+    </div>
+    <div class="form-group" style="margin-bottom:20px"><label class="form-label">Notes</label><textarea id="notes" class="form-textarea" placeholder="Any additional information…"></textarea></div>
+    <div style="display:flex;gap:10px">
+      <button onclick="saveAnimal()" class="btn btn-primary">💾 Register Animal</button>
+      <a href="livestock.html" class="btn">Cancel</a>
     </div>
   </div>
-  `;
-
-  function saveAnimal() {
-    const tagId = document.getElementById('tagId').value.trim();
-    const type  = document.getElementById('type').value;
-    const gender= document.getElementById('gender').value;
-    const errEl = document.getElementById('err');
-    errEl.style.display='none';
-
-    if (!tagId) { errEl.textContent='Tag ID is required.'; errEl.style.display='flex'; return; }
-    if (!type)  { errEl.textContent='Please select animal type.'; errEl.style.display='flex'; return; }
-    if (!gender){ errEl.textContent='Please select gender.'; errEl.style.display='flex'; return; }
-
-    // Check duplicate tag
-    if (SF.getAnimals().find(a=>a.tagId===tagId)) {
-      errEl.textContent='Tag ID already exists.'; errEl.style.display='flex'; return;
-    }
-
-    const id = SF.saveAnimal({
-      tagId, type, gender,
-      name:               document.getElementById('name').value.trim(),
-      breed:              document.getElementById('breed').value.trim(),
-      dob:                document.getElementById('dob').value,
-      weight:             +document.getElementById('weight').value||0,
-      color:              document.getElementById('color').value.trim(),
-      source:             document.getElementById('source').value.trim(),
-      purchasePrice:      +document.getElementById('purchasePrice').value||0,
-      currentValue:       +document.getElementById('currentValue').value||0,
-      healthStatus:       document.getElementById('healthStatus').value,
-      reproductiveStatus: document.getElementById('reproductiveStatus').value.trim(),
-      notes:              document.getElementById('notes').value.trim(),
-      isActive:           true,
-    });
-    SF.toast('Animal saved!');
-    window.location.href = 'livestock-view.html?id=' + id;
-  }
-  </script>
-</body>
-</html>
+</div>
+`;
+function saveAnimal(){
+  const tagId=document.getElementById('tagId').value.trim();
+  const type=document.getElementById('type').value;
+  const gender=document.getElementById('gender').value;
+  const errEl=document.getElementById('err');errEl.style.display='none';
+  if(!tagId){errEl.innerHTML='⚠ Tag ID is required.';errEl.style.display='flex';return;}
+  if(!type){errEl.innerHTML='⚠ Please select animal type.';errEl.style.display='flex';return;}
+  if(!gender){errEl.innerHTML='⚠ Please select gender.';errEl.style.display='flex';return;}
+  if(SF.getAnimals().find(a=>a.tagId===tagId)){errEl.innerHTML='⚠ Tag ID already exists.';errEl.style.display='flex';return;}
+  const id=SF.saveAnimal({tagId,type,gender,
+    name:document.getElementById('name').value.trim(),
+    breed:document.getElementById('breed').value.trim(),
+    dob:document.getElementById('dob').value,
+    weight:+document.getElementById('weight').value||0,
+    color:document.getElementById('color').value.trim(),
+    source:document.getElementById('source').value.trim(),
+    purchasePrice:+document.getElementById('purchasePrice').value||0,
+    currentValue:+document.getElementById('currentValue').value||0,
+    healthStatus:document.getElementById('healthStatus').value,
+    reproductiveStatus:document.getElementById('reproductiveStatus').value.trim(),
+    notes:document.getElementById('notes').value.trim(),
+    isActive:true,
+  });
+  SF.toast('Animal registered!');
+  window.location.href='livestock-view.html?id='+id;
+}
+</script></body></html>

@@ -1,79 +1,90 @@
 // ============================================================
-// nav.js — Shared sidebar + topbar injected into every page
+// nav.js — Shared shell (topbar + sidebar)
 // ============================================================
 
-function buildNav(pageTitle, activePage) {
+function buildShell(pageTitle, activeKey) {
   const s = SF.session();
   if (!s) return;
 
-  const mods = SF.getModules();
-  const isActive = slug => mods.find(m => m.slug === slug)?.active !== false;
+  const mods  = SF.getModules();
+  const isOn  = slug => mods.find(m => m.slug === slug)?.active !== false;
+  const sick  = SF.getAnimals().filter(a => a.healthStatus === 'sick').length;
+  const total = SF.getAnimals().filter(a => a.isActive !== false).length;
 
-  const navItems = [
-    { href:'dashboard.html', icon:'⊞', label:'Dashboard', key:'dashboard' },
-    isActive('livestock') ? { href:'livestock.html', icon:'🐄', label:'Livestock', key:'livestock' } : null,
-    isActive('crops')     ? { href:'crops.html',     icon:'🌾', label:'Crops',     key:'crops'     } : null,
-    isActive('executive') ? { href:'executive.html', icon:'📊', label:'Executive', key:'executive' } : null,
-    s.role === 'admin' ? { href:'admin.html', icon:'⚙', label:'Modules', key:'admin' } : null,
+  const nav = [
+    { href:'dashboard.html', icon:'⊞', label:'Dashboard',  key:'dashboard' },
+    isOn('livestock') ? { href:'livestock.html', icon:'🐄', label:'Herd',   key:'livestock', badge: sick > 0 ? sick : null, badgeClass: sick > 0 ? '' : 'g' } : null,
+    isOn('livestock') ? { href:'health.html',    icon:'❤', label:'Health', key:'health',     badge: sick > 0 ? sick : null } : null,
+    isOn('crops')     ? { href:'crops.html',     icon:'🌱', label:'Crops',  key:'crops' } : null,
+    isOn('executive') ? { href:'executive.html', icon:'📊', label:'Analytics', key:'executive' } : null,
+    { href:'transactions.html', icon:'₦', label:'Financials', key:'transactions' },
+    s.role === 'admin' ? { href:'admin.html',    icon:'⚙', label:'Settings', key:'admin' } : null,
   ].filter(Boolean);
 
-  const navHTML = navItems.map(n => `
-    <a href="${n.href}" class="nav-link ${activePage === n.key ? 'active' : ''}">
+  const navHTML = nav.map(n => `
+    <a href="${n.href}" class="nav-link ${activeKey === n.key ? 'active' : ''}">
       <span class="nav-icon">${n.icon}</span>
-      <span>${n.label}</span>
-    </a>`).join('');
+      ${n.label}
+      ${n.badge ? `<span class="nav-badge">${n.badge}</span>` : ''}
+    </a>
+  `).join('');
 
   document.getElementById('app-shell').innerHTML = `
-  <!-- Overlay -->
-  <div id="overlay" onclick="closeSidebar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:40"></div>
+  <div id="overlay" onclick="closeSidebar()"></div>
 
-  <!-- Sidebar -->
-  <aside id="sidebar">
-    <div class="sidebar-logo">
-      <div class="logo-icon">🌾</div>
-      <div>
-        <div class="logo-title">SmartFarm</div>
-        <div class="logo-sub">Smart Farming</div>
-      </div>
+  <header class="topbar">
+    <div class="tb-brand">
+      <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+      <div class="tb-logo">🌾</div>
+      <div class="tb-name">Smart<em>Farm</em></div>
     </div>
-    <div class="sidebar-user">
-      <div class="user-avatar">${s.name[0].toUpperCase()}</div>
-      <div>
-        <div class="user-name">${s.name}</div>
-        <div class="user-role">${s.role}</div>
-      </div>
+    <div class="tb-right">
+      <div class="live-pill"><div class="live-dot"></div>LIVE</div>
+      <div class="tb-time" id="sf-clock">--:--</div>
+      <div class="tb-avatar" title="${s.name}">${s.name[0].toUpperCase()}</div>
     </div>
-    <nav class="sidebar-nav">
-      <div class="nav-group-label">Menu</div>
-      ${navHTML}
-    </nav>
-    <div class="sidebar-footer">
-      <button onclick="SF.logout()" class="logout-btn">↩ Logout</button>
+  </header>
+
+  <aside class="sidebar" id="sf-sidebar">
+    <div class="sb-farm">
+      <div class="sb-farm-tag">Active farm</div>
+      <div class="sb-farm-name">${s.farm || 'My Farm'}</div>
+      <div class="sb-farm-loc">${s.name} · ${s.role}</div>
+    </div>
+
+    <div class="sb-section">Overview</div>
+    ${navHTML}
+
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="sb-av">${s.name[0].toUpperCase()}</div>
+        <div>
+          <div class="sb-uname">${s.name}</div>
+          <div class="sb-role">${s.role}</div>
+        </div>
+      </div>
+      <button class="sb-logout" onclick="SF.logout()">↩ Sign out</button>
     </div>
   </aside>
 
-  <!-- Main -->
-  <div class="main-wrap">
-    <header class="topbar">
-      <button onclick="toggleSidebar()" class="menu-btn">☰</button>
-      <h1 class="topbar-title">${pageTitle}</h1>
-      <div class="topbar-date">${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div>
-    </header>
-    <main class="page-content" id="page-content">
+  <div class="content" id="sf-content">
+    <div class="page active" id="page-content">
   `;
-}
 
-function closeShell() {
-  document.getElementById('page-content').insertAdjacentHTML('afterend','</main></div>');
+  // Start clock
+  function tick() {
+    const el = document.getElementById('sf-clock');
+    if (el) el.textContent = new Date().toLocaleTimeString('en-NG', { hour:'2-digit', minute:'2-digit' });
+  }
+  tick();
+  setInterval(tick, 1000);
 }
 
 function toggleSidebar() {
-  const sb = document.getElementById('sidebar');
-  const ov = document.getElementById('overlay');
-  const open = sb.classList.toggle('open');
-  ov.style.display = open ? 'block' : 'none';
+  document.getElementById('sf-sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('show');
 }
 function closeSidebar() {
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('overlay').style.display = 'none';
+  document.getElementById('sf-sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
 }

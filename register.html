@@ -1,83 +1,56 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Register — SmartFarm</title>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>SmartFarm — Register</title>
   <link rel="stylesheet" href="assets/css/app.css">
+  <style>
+    body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--green-t);padding:20px}
+    .auth-wrap{width:100%;max-width:420px}
+    .auth-brand{text-align:center;margin-bottom:20px}
+    .auth-logo{width:48px;height:48px;background:rgba(255,255,255,.15);border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:8px}
+    .auth-title{font-size:20px;font-weight:800;color:#fff}
+    .auth-card{background:var(--surf);border-radius:var(--radius-l);padding:28px;border:1px solid var(--border)}
+    .auth-footer{text-align:center;margin-top:14px;font-size:12px;color:rgba(255,255,255,.6)}
+    .auth-footer a{color:#fff;font-weight:700}
+  </style>
 </head>
-<body class="auth-body">
-  <div class="auth-card">
-    <div class="auth-logo">
-      <div class="auth-logo-icon">🌾</div>
-      <h1>SmartFarm</h1>
-      <p>Create your farm account</p>
+<body>
+  <div class="auth-wrap">
+    <div class="auth-brand">
+      <div class="auth-logo">🌾</div>
+      <div class="auth-title">Create Account</div>
     </div>
-
-    <h2>Create Account</h2>
-
-    <div id="error-msg" class="alert alert-error" style="display:none"></div>
-
-    <div class="form-group">
-      <label class="form-label">Full Name <span class="req">*</span></label>
-      <input type="text" id="name" class="form-input" placeholder="John Doe">
+    <div class="auth-card">
+      <h2 style="font-size:15px;font-weight:700;margin-bottom:18px">Farm registration</h2>
+      <div id="err" class="alert-bar" style="display:none;margin-bottom:14px"></div>
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">Full Name</label><input type="text" id="name" class="form-input" placeholder="John Doe"></div>
+        <div class="form-group"><label class="form-label">Farm Name</label><input type="text" id="farm" class="form-input" placeholder="My Farm"></div>
+        <div class="form-group form-span-2"><label class="form-label">Email</label><input type="email" id="email" class="form-input" placeholder="you@example.com"></div>
+        <div class="form-group"><label class="form-label">Password</label><input type="password" id="pwd" class="form-input" placeholder="Min. 6 chars"></div>
+        <div class="form-group"><label class="form-label">Confirm</label><input type="password" id="pwd2" class="form-input" placeholder="Repeat password"></div>
+      </div>
+      <button onclick="doRegister()" class="btn btn-primary btn-block" style="margin-top:16px;padding:10px;font-size:13px">Create Account →</button>
     </div>
-    <div class="form-group">
-      <label class="form-label">Email Address <span class="req">*</span></label>
-      <input type="email" id="email" class="form-input" placeholder="you@example.com">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Farm Name</label>
-      <input type="text" id="farmName" class="form-input" placeholder="My Green Farm">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Password <span class="req">*</span></label>
-      <input type="password" id="password" class="form-input" placeholder="Min. 6 characters">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Confirm Password <span class="req">*</span></label>
-      <input type="password" id="confirm" class="form-input" placeholder="Repeat password">
-    </div>
-
-    <button onclick="doRegister()" class="btn btn-primary btn-block">
-      ✚ Create Account
-    </button>
-
-    <p style="text-align:center;margin-top:16px;font-size:13px;color:var(--gray-400)">
-      Already have an account? <a href="login.html" style="color:var(--green-600);font-weight:700">Sign in</a>
-    </p>
+    <div class="auth-footer">Already registered? <a href="login.html">Sign in</a></div>
   </div>
-
   <script src="assets/js/app.js"></script>
   <script>
-    if (SF.session()) window.location.href = 'dashboard.html';
-
-    function doRegister() {
-      const name     = document.getElementById('name').value.trim();
-      const email    = document.getElementById('email').value.trim();
-      const farmName = document.getElementById('farmName').value.trim();
-      const password = document.getElementById('password').value;
-      const confirm  = document.getElementById('confirm').value;
-      const errEl    = document.getElementById('error-msg');
-      errEl.style.display = 'none';
-
-      if (!name || !email || !password) { showErr('Please fill in all required fields.'); return; }
-      if (password !== confirm) { showErr('Passwords do not match.'); return; }
-      if (password.length < 6) { showErr('Password must be at least 6 characters.'); return; }
-
-      const result = SF.register(name, email, password, farmName);
-      if (result.ok) {
-        SF.login(email, password);
-        window.location.href = 'dashboard.html';
-      } else {
-        showErr(result.msg);
-      }
-    }
-
-    function showErr(msg) {
-      const el = document.getElementById('error-msg');
-      el.textContent = msg;
-      el.style.display = 'flex';
+    if(SF.session()) window.location.href='dashboard.html';
+    function doRegister(){
+      const n=document.getElementById('name').value.trim();
+      const e=document.getElementById('email').value.trim();
+      const f=document.getElementById('farm').value.trim();
+      const p=document.getElementById('pwd').value;
+      const p2=document.getElementById('pwd2').value;
+      const err=document.getElementById('err');err.style.display='none';
+      if(!n||!e||!p){err.innerHTML='⚠ Please fill in all required fields.';err.style.display='flex';return;}
+      if(p!==p2){err.innerHTML='⚠ Passwords do not match.';err.style.display='flex';return;}
+      if(p.length<6){err.innerHTML='⚠ Password must be at least 6 characters.';err.style.display='flex';return;}
+      const r=SF.register(n,e,p,f);
+      if(r.ok){SF.login(e,p);window.location.href='dashboard.html';}
+      else{err.innerHTML='⚠ '+r.msg;err.style.display='flex';}
     }
   </script>
 </body>

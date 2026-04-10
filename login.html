@@ -2,70 +2,60 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login — SmartFarm</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>SmartFarm — Sign In</title>
   <link rel="stylesheet" href="assets/css/app.css">
+  <style>
+    body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--green-t);padding:20px}
+    .auth-wrap{width:100%;max-width:400px}
+    .auth-brand{text-align:center;margin-bottom:24px}
+    .auth-logo{width:56px;height:56px;background:rgba(255,255,255,.15);border-radius:14px;display:inline-flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:10px;border:1px solid rgba(255,255,255,.2)}
+    .auth-title{font-size:22px;font-weight:800;color:#fff;letter-spacing:-.3px}
+    .auth-sub{font-size:12px;color:rgba(255,255,255,.6);margin-top:3px}
+    .auth-card{background:var(--surf);border-radius:var(--radius-l);padding:28px;border:1px solid var(--border)}
+    .auth-card h2{font-size:16px;font-weight:700;margin-bottom:20px;color:var(--text)}
+    .auth-demo{margin-top:16px;padding:10px 12px;background:var(--surf2);border-radius:var(--radius);font-size:11px;color:var(--text3);text-align:center;border:1px solid var(--border);font-family:var(--mono)}
+    .auth-footer{text-align:center;margin-top:14px;font-size:12px;color:rgba(255,255,255,.6)}
+    .auth-footer a{color:#fff;font-weight:700}
+  </style>
 </head>
-<body class="auth-body">
-  <div class="auth-card">
-    <div class="auth-logo">
-      <div class="auth-logo-icon">🌾</div>
-      <h1>SmartFarm</h1>
-      <p>Smart Farm Management System</p>
+<body>
+  <div class="auth-wrap">
+    <div class="auth-brand">
+      <div class="auth-logo">🌾</div>
+      <div class="auth-title">Smart<span style="opacity:.6;font-weight:400">Farm</span></div>
+      <div class="auth-sub">Farm Management System</div>
     </div>
-
-    <h2>Welcome Back 👋</h2>
-
-    <div id="error-msg" class="alert alert-error" style="display:none"></div>
-
-    <div class="form-group">
-      <label class="form-label">Email Address</label>
-      <input type="email" id="email" class="form-input" placeholder="admin@smartfarm.com" value="admin@smartfarm.com">
+    <div class="auth-card">
+      <h2>Welcome back</h2>
+      <div id="err" class="alert-bar" style="display:none;margin-bottom:14px"></div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label class="form-label">Email</label>
+        <input type="email" id="email" class="form-input" value="admin@smartfarm.com" placeholder="you@example.com">
+      </div>
+      <div class="form-group" style="margin-bottom:18px">
+        <label class="form-label">Password</label>
+        <input type="password" id="password" class="form-input" value="password" placeholder="••••••••">
+      </div>
+      <button onclick="doLogin()" class="btn btn-primary btn-block" style="padding:10px;font-size:13px">Sign In →</button>
+      <div class="auth-demo"><strong>Demo:</strong> admin@smartfarm.com / password</div>
     </div>
-    <div class="form-group">
-      <label class="form-label">Password</label>
-      <input type="password" id="password" class="form-input" placeholder="Enter password" value="password">
-    </div>
-
-    <button onclick="doLogin()" class="btn btn-primary btn-block" style="margin-top:4px">
-      ↩ Sign In
-    </button>
-
-    <p style="text-align:center;margin-top:16px;font-size:13px;color:var(--gray-400)">
-      No account? <a href="register.html" style="color:var(--green-600);font-weight:700">Register here</a>
-    </p>
-
-    <div style="margin-top:18px;background:var(--green-50);border-radius:10px;padding:12px;text-align:center;font-size:12px;color:var(--gray-500)">
-      <strong>Demo:</strong> admin@smartfarm.com / password
-    </div>
+    <div class="auth-footer">No account? <a href="register.html">Register here</a></div>
   </div>
-
   <script src="assets/js/app.js"></script>
   <script>
-    // Already logged in? go to dashboard
-    if (SF.session()) window.location.href = 'dashboard.html';
-
-    function doLogin() {
-      const email    = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value;
-      const errEl    = document.getElementById('error-msg');
-      errEl.style.display = 'none';
-
-      if (!email || !password) {
-        errEl.textContent = 'Please fill in both fields.';
-        errEl.style.display = 'flex';
-        return;
-      }
-      const result = SF.login(email, password);
-      if (result.ok) {
-        window.location.href = 'dashboard.html';
-      } else {
-        errEl.textContent = result.msg;
-        errEl.style.display = 'flex';
-      }
+    if(SF.session()) window.location.href='dashboard.html';
+    function doLogin(){
+      const e=document.getElementById('email').value.trim();
+      const p=document.getElementById('password').value;
+      const errEl=document.getElementById('err');
+      errEl.style.display='none';
+      if(!e||!p){errEl.innerHTML='Please fill in all fields.';errEl.style.display='flex';return;}
+      const r=SF.login(e,p);
+      if(r.ok) window.location.href='dashboard.html';
+      else{errEl.innerHTML='⚠ '+r.msg;errEl.style.display='flex';}
     }
-
-    document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+    document.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
   </script>
 </body>
 </html>

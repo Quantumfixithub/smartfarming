@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Health Monitor — SmartFarm</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body class="shell">
+<div id="app-shell"></div>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/nav.js"></script>
+<script>
+SF.requireLogin();
+buildShell('Health Monitor','health');
+
+const pc = document.getElementById('page-content');
+
+function render(activeTab='care'){
+  const animals = SF.getAnimals().filter(a=>a.isActive!==false);
+  const sick      = animals.filter(a=>a.healthStatus==='sick');
+  const recovering= animals.filter(a=>a.healthStatus==='recovering');
+  const healthy   = animals.filter(a=>a.healthStatus==='healthy');
+  const healthDue = SF.getUpcomingHealth();
+
+  const careAnimals = animals.filter(a=>a.healthStatus!=='healthy');
+  const allHealth   = animals.flatMap(a=>SF.getHealthRecords(a.id)).sort((a,b)=>new Date(b.dateGiven)-new Date(a.dateGiven));
+
+  pc.innerHTML = `
+  ${sick.length ? `<div class="alert-bar"><span style="font-size:16px">🚨</span>
+    <span><strong>${sick.map(a=>a.name||a.tagId).join(', ')} — requires immediate attention.</strong>
+    Isolate from herd and contact your vet.</span></div>` : ''}
+
+  <div class="kpi-row cols-4">
+    <div class="kpi" style="--kpi-accent:var(--green)">
+      <div class="kpi-lbl">Healthy</div>
+      <div class="kpi-val good">${healthy.length}</div>
+      <div class="kpi-delta delta-up">${animals.length?Math.round(healthy.length/animals.length*100):0}% of herd</div>
+    </div>
+    <div class="kpi" style="--kpi-accent:var(--red)">
+      <div class="kpi-lbl">Under Care</div>
+      <div class="kpi-val ${sick.length?'bad':''}">${sick.length + recovering.length}</div>
+      <div class="kpi-delta delta-dn">${sick.length} sick · ${recovering.length} recovering</div>
+    </div>
+    <div class="kpi" style="--kpi-accent:var(--amber)">
+      <div class="kpi-lbl">Vaccinations Due</div>
+      <div class="kpi-val">${healthDue.length}</div>
+      <div class="kpi-delta delta-nt">Next 30 days</div>
+    </div>
+    <div class="kpi" style="--kpi-accent:var(--blue)">
+      <div class="kpi-lbl">Mortality (month)</div>
+      <div class="kpi-val good">0</div>
+      <div class="kpi-delta delta-up">Zero deaths this month</div>
+    </div>
+  </div>
+
+  <!-- Pen Heatmap -->
+  <div class="panel">
+    <div class="ph"><span class="ph-title">Pen Health Heatmap</span><span class="ph-meta">All enclosures · Click for details</span></div>
+    <div class="hm-grid">
+      ${animals.slice(0,12).map((a,i)=>{
+        const cls=a.healthStatus==='healthy'?'hm-great':a.healthStatus==='sick'?'hm-bad':a.healthStatus==='recovering'?'hm-warn':'hm-off';
+        const pct=a.healthStatus==='healthy'?'99%':a.healthStatus==='sick'?'⚠':a.healthStatus==='recovering'?'85%':'—';
+        return `<div class="hm-cell ${cls}" onclick="window.location.href='livestock-view.html?id=${a.id}'" title="${a.name||a.tagId}">
+          <div>${a.tagId.replace(/[A-Z]+-/,'').slice(0,4)}</div>
+          <div>${pct}</div>
+        </div>`;
+      }).join('')}
+      ${Array(Math.max(0,12-animals.length)).fill('<div class="hm-cell hm-off"><div>—</div><div>—</div></div>').join('')}
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="panel">
+    <div style="display:flex;border-bottom:1px solid var(--border);padding:0 4px">
+      ${[['care','🏥 Under Care'],['schedule','💉 Vaccination Schedule'],['all','📋 All Records'],['log','➕ Add Record']].map(([k,l])=>
+        `<button style="padding:10px 16px;font-size:12px;font-weight:700;color:${activeTab===k?'var(--green-t)':'var(--text3)'};background:none;border:none;border-bottom:${activeTab===k?'2.5px solid var(--green)':'2.5px solid transparent'};margin-bottom:-1px;cursor:pointer;font-family:var(--font);white-space:nowrap;transition:.15s" onclick="switchTab('${k}')" id="tab-${k}">${l}</button>`
+      ).join('')}
+    </div>
+
+    <!-- Under Care -->
+    <div id="pane-care" style="display:${activeTab==='care'?'block':'none'}">
+      ${!careAnimals.length ? `<div class="empty"><div class="empty-ico">✅</div><h3>All Clear</h3><p>No animals currently under care.</p></div>` :
+        `<div class="health-grid" style="padding:16px">
+          ${careAnimals.map(a=>{
+            const chipMap={sick:'chip-bad',recovering:'chip-warn'};
+            const logs=SF.getAnimalLogs(a.id).sort((x,y)=>new Date(y.logDate)-new Date(x.logDate));
+            const lastLog=logs[0];
+            return `<div class="hcard" onclick="window.location.href='livestock-view.html?id=${a.id}'">
+              <div class="hcard-top">
+                <div class="hcard-ico">${SF.animalIcon(a.type)}</div>
+                <div style="flex:1">
+                  <div class="hcard-name">${a.name||a.tagId}</div>
+                  <div class="hcard-breed">${a.breed||a.type} · Tag: ${a.tagId}</div>
+                </div>
+                <span class="chip ${chipMap[a.healthStatus]||'chip-gray'}">${a.healthStatus}</span>
+              </div>
+              <div class="hcard-metrics">
+                <div class="hm"><div class="hm-lbl">Temp</div><div class="hm-val ${a.healthStatus==='sick'?'bad':''}">${lastLog?.temperature?lastLog.temperature+'°C':'—'}</div></div>
+                <div class="hm"><div class="hm-lbl">Weight</div><div class="hm-val">${a.weight?a.weight+' kg':'—'}</div></div>
+                <div class="hm"><div class="hm-lbl">Last Fed</div><div class="hm-val">Today</div></div>
+              </div>
+              <div class="hcard-note">${a.notes||'Click to view full profile and add treatment record.'} <span style="color:var(--amber)">Tap for details ↗</span></div>
+            </div>`;
+          }).join('')}
+        </div>`}
+    </div>
+
+    <!-- Vaccination Schedule -->
+    <div id="pane-schedule" style="display:${activeTab==='schedule'?'block':'none'}">
+      ${!healthDue.length ? `<div class="empty"><div class="empty-ico">💉</div><h3>No Upcoming Vaccinations</h3><p>All scheduled vaccinations are up to date.</p></div>` :
+        `<table class="tbl">
+          <thead><tr><th>Animal</th><th>Record Type</th><th>Vaccine/Medicine</th><th>Due Date</th><th>Days Left</th><th>Vet</th><th>Status</th></tr></thead>
+          <tbody>
+            ${healthDue.map(h=>{
+              const a=SF.getAnimal(h.animalId);
+              const days=SF.daysUntil(h.nextDue);
+              return `<tr onclick="window.location.href='livestock-view.html?id=${h.animalId}'">
+                <td><strong>${a?.name||h.animalId}</strong> <span style="color:var(--text3)">${a?.tagId||''}</span></td>
+                <td>${h.recordType}</td>
+                <td>${h.vaccineName||'—'}</td>
+                <td class="monospace">${SF.fmtDate(h.nextDue)}</td>
+                <td class="monospace ${days<=3?'text-bad':days<=7?'text-warn':''}">${days===0?'Today!':days+' days'}</td>
+                <td>${h.vetName||'—'}</td>
+                <td><span class="chip ${days<=3?'chip-bad':days<=7?'chip-warn':'chip-blue'}">${days<=3?'Urgent':days<=7?'Soon':'Scheduled'}</span></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>`}
+    </div>
+
+    <!-- All Records -->
+    <div id="pane-all" style="display:${activeTab==='all'?'block':'none'}">
+      ${!allHealth.length ? `<div class="empty"><div class="empty-ico">📋</div><h3>No Records</h3><p>Health records will appear here.</p></div>` :
+        `<table class="tbl">
+          <thead><tr><th>Animal</th><th>Type</th><th>Vaccine/Meds</th><th>Date Given</th><th>Next Due</th><th>Vet</th><th>Cost</th></tr></thead>
+          <tbody>
+            ${allHealth.slice(0,20).map(h=>{
+              const a=SF.getAnimal(h.animalId);
+              return `<tr onclick="window.location.href='livestock-view.html?id=${h.animalId}'">
+                <td>${a?.name||h.animalId}</td>
+                <td><span class="chip chip-blue">${h.recordType}</span></td>
+                <td><strong>${h.vaccineName||'—'}</strong></td>
+                <td class="monospace">${SF.fmtDate(h.dateGiven)}</td>
+                <td class="monospace">${h.nextDue?SF.fmtDate(h.nextDue):'—'}</td>
+                <td>${h.vetName||'—'}</td>
+                <td class="monospace">${h.cost?SF.currency(h.cost):'—'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>`}
+    </div>
+
+    <!-- Add Record Form -->
+    <div id="pane-log" style="display:${activeTab==='log'?'block':'none'};padding:20px">
+      <div style="max-width:560px">
+        <div id="form-err" class="alert-bar" style="display:none;margin-bottom:14px"></div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Animal <span class="req">*</span></label>
+            <select id="r-animal" class="form-select">
+              <option value="">— Select Animal —</option>
+              ${animals.map(a=>`<option value="${a.id}">${a.name||a.tagId} (${a.type})</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Record Type</label>
+            <select id="r-type" class="form-select">
+              <option value="vaccination">💉 Vaccination</option>
+              <option value="treatment">💊 Treatment</option>
+              <option value="checkup">🩺 Checkup</option>
+              <option value="deworming">🪱 Deworming</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Vaccine / Medicine</label>
+            <input type="text" id="r-name" class="form-input" placeholder="e.g. FMD Booster">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Vet Name</label>
+            <input type="text" id="r-vet" class="form-input" placeholder="Dr. Emeka">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Date Given</label>
+            <input type="date" id="r-date" class="form-input" value="${new Date().toISOString().slice(0,10)}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Next Due Date</label>
+            <input type="date" id="r-next" class="form-input">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Cost (₦)</label>
+            <input type="number" id="r-cost" class="form-input" value="0" step="0.01">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Notes</label>
+            <input type="text" id="r-notes" class="form-input" placeholder="Optional observations">
+          </div>
+        </div>
+        <div style="margin-top:16px;display:flex;gap:10px">
+          <button onclick="saveRecord()" class="btn btn-primary">💾 Save Record</button>
+          <button onclick="switchTab('care')" class="btn">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  `;
+
+  function switchTab(t){
+    ['care','schedule','all','log'].forEach(k=>{
+      document.getElementById('pane-'+k).style.display=t===k?'block':'none';
+      const btn=document.getElementById('tab-'+k);
+      if(btn){btn.style.color=t===k?'var(--green-t)':'var(--text3)';btn.style.borderBottomColor=t===k?'var(--green)':'transparent';}
+    });
+  }
+  window.switchTab=switchTab;
+
+  window.saveRecord=function(){
+    const aid=+document.getElementById('r-animal').value;
+    const errEl=document.getElementById('form-err');
+    errEl.style.display='none';
+    if(!aid){errEl.innerHTML='⚠ Please select an animal.';errEl.style.display='flex';return;}
+    SF.addHealthRecord({
+      animalId:aid,recordType:document.getElementById('r-type').value,
+      vaccineName:document.getElementById('r-name').value.trim(),
+      vetName:document.getElementById('r-vet').value.trim(),
+      dateGiven:document.getElementById('r-date').value,
+      nextDue:document.getElementById('r-next').value||null,
+      cost:+document.getElementById('r-cost').value||0,
+      notes:document.getElementById('r-notes').value.trim(),
+    });
+    SF.toast('Health record saved!');
+    render('schedule');
+  };
+}
+render();
+</script>
+</body>
+</html>

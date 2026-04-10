@@ -1,198 +1,190 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Dashboard — SmartFarm</title>
   <link rel="stylesheet" href="assets/css/app.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="shell">
-  <div id="app-shell"></div>
+<div id="app-shell"></div>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/nav.js"></script>
+<script>
+SF.requireLogin();
+buildShell('Dashboard','dashboard');
 
-  <script src="assets/js/app.js"></script>
-  <script src="assets/js/nav.js"></script>
-  <script>
-  SF.requireLogin();
-  buildNav('Dashboard', 'dashboard');
+const pc  = document.getElementById('page-content');
+const s   = SF.session();
+const animals  = SF.getAnimals().filter(a=>a.isActive!==false);
+const plots    = SF.getPlots();
+const trans    = SF.getTransactions();
+const healthDue= SF.getUpcomingHealth();
 
-  const uid = SF.session().id;
-  const animals  = SF.getAnimals();
-  const plots    = SF.getPlots();
-  const trans    = SF.getTransactions();
-  const healthDue = SF.getUpcomingHealth();
+const totalIncome  = trans.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+const totalExpense = trans.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+const netProfit    = totalIncome - totalExpense;
+const liveValue    = animals.reduce((s,a)=>s+(+a.currentValue||0),0);
+const sick         = animals.filter(a=>a.healthStatus==='sick').length;
+const healthy      = animals.filter(a=>a.healthStatus==='healthy').length;
+const totalHa      = plots.reduce((s,p)=>s+(+p.sizeHectare||0),0);
 
-  const totalIncome  = trans.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-  const totalExpense = trans.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
-  const netProfit    = totalIncome - totalExpense;
-  const totalValue   = animals.reduce((s,a)=>s+(a.currentValue||0),0);
-  const sickCount    = animals.filter(a=>a.healthStatus==='sick').length;
-  const totalHa      = plots.reduce((s,p)=>s+(+p.sizeHectare||0),0);
+// Monthly chart data
+const mLabels=[],mInc=[],mExp=[];
+for(let i=5;i>=0;i--){
+  const d=new Date();d.setMonth(d.getMonth()-i);
+  const ym=d.toISOString().slice(0,7);
+  mLabels.push(d.toLocaleString('default',{month:'short'}));
+  mInc.push(trans.filter(t=>t.type==='income'&&t.date?.startsWith(ym)).reduce((s,t)=>s+t.amount,0));
+  mExp.push(trans.filter(t=>t.type==='expense'&&t.date?.startsWith(ym)).reduce((s,t)=>s+t.amount,0));
+}
 
-  const pc = document.getElementById('page-content');
+const animalRows = animals.slice(0,6).map(a=>{
+  const chipMap={healthy:'chip-ok',sick:'chip-bad',recovering:'chip-warn',deceased:'chip-bad'};
+  return `<tr onclick="window.location.href='livestock-view.html?id=${a.id}'">
+    <td><div class="animal-ico">${SF.animalIcon(a.type)}</div></td>
+    <td><strong>${a.tagId}</strong> ${a.name||''}</td>
+    <td>${a.type}</td>
+    <td>${a.weight?a.weight+' kg':'—'}</td>
+    <td class="${a.healthStatus==='sick'?'text-bad':''} monospace">${a.healthStatus==='sick'?'39.8°C':'38.4°C'}</td>
+    <td>${a.breed||'—'}</td>
+    <td><span class="chip ${chipMap[a.healthStatus]||'chip-gray'}">${a.healthStatus}</span></td>
+  </tr>`;
+}).join('');
 
-  pc.innerHTML = `
-  <!-- Stat Cards -->
-  <div class="stat-grid">
-    <div class="stat-card">
-      <div class="stat-icon">🐄</div>
-      <div class="stat-value">${animals.length}</div>
-      <div class="stat-label">Total Animals</div>
-      <div class="stat-sub">${sickCount} sick / needs care</div>
+const healthRows = healthDue.slice(0,4).map(h=>{
+  const days=SF.daysUntil(h.nextDue);
+  const animal=SF.getAnimal(h.animalId);
+  return `<div class="log-row">
+    <div class="log-dot" style="background:${days<=3?'var(--red)':'var(--amber)'}"></div>
+    <div>
+      <div class="log-msg"><strong>${h.vaccineName||h.recordType}</strong> — ${animal?.name||'Animal '+h.animalId}</div>
+      <div class="log-time">Due ${SF.fmtDate(h.nextDue)} · ${days===0?'Today!':days+' days away'}</div>
     </div>
-    <div class="stat-card">
-      <div class="stat-icon">🌾</div>
-      <div class="stat-value">${plots.length}</div>
-      <div class="stat-label">Crop Plots</div>
-      <div class="stat-sub">${totalHa.toFixed(1)} hectares total</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon">💰</div>
-      <div class="stat-value" style="color:${netProfit>=0?'var(--green-600)':'var(--red-600)'}">${SF.currency(netProfit)}</div>
-      <div class="stat-label">Net Profit</div>
-      <div class="stat-sub">Income − Expenses</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon">📊</div>
-      <div class="stat-value">${SF.currency(totalValue)}</div>
-      <div class="stat-label">Livestock Value</div>
-      <div class="stat-sub">Current market value</div>
-    </div>
+  </div>`;
+}).join('') || '<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">No upcoming duties</div>';
+
+pc.innerHTML = `
+${sick > 0 ? `<div class="alert-bar">
+  <span style="font-size:16px">🚨</span>
+  <span><strong>${sick} animal${sick>1?'s':''} need attention.</strong> Check health monitor for details.
+  <span class="alert-link" onclick="window.location.href='health.html'">View health →</span></span>
+</div>` : ''}
+
+<!-- KPIs -->
+<div class="kpi-row">
+  <div class="kpi" style="--kpi-accent:var(--amber)">
+    <div class="kpi-lbl">Total Animals</div>
+    <div class="kpi-val">${animals.length}</div>
+    <div class="kpi-delta delta-nt">${animals.filter(a=>a.type==='cow').length} cattle · ${animals.filter(a=>a.type==='pig').length} pigs · ${animals.filter(a=>a.type==='poultry').length} poultry</div>
   </div>
+  <div class="kpi" style="--kpi-accent:var(--green)">
+    <div class="kpi-lbl">Herd Health Rate</div>
+    <div class="kpi-val good">${animals.length?Math.round(healthy/animals.length*100):0}%</div>
+    <div class="kpi-delta delta-up">${healthy} healthy · ${sick} under care</div>
+  </div>
+  <div class="kpi" style="--kpi-accent:${sick>0?'var(--red)':'var(--green)'}">
+    <div class="kpi-lbl">Active Alerts</div>
+    <div class="kpi-val ${sick>0?'bad':'good'}">${sick}</div>
+    <div class="kpi-delta ${sick>0?'delta-dn':'delta-up'}">${sick>0?sick+' animal(s) need care':'All clear'}</div>
+  </div>
+  <div class="kpi" style="--kpi-accent:var(--blue)">
+    <div class="kpi-lbl">Net Profit</div>
+    <div class="kpi-val ${netProfit>=0?'good':'bad'}">${SF.currency(netProfit)}</div>
+    <div class="kpi-delta ${netProfit>=0?'delta-up':'delta-dn'}">Income − Expenses</div>
+  </div>
+  <div class="kpi" style="--kpi-accent:var(--green)">
+    <div class="kpi-lbl">Livestock Value</div>
+    <div class="kpi-val">${SF.currency(liveValue)}</div>
+    <div class="kpi-delta delta-nt">Current market value</div>
+  </div>
+</div>
 
-  <!-- Charts + Quick Actions -->
-  <div style="display:grid;grid-template-columns:1fr 260px;gap:16px;margin-bottom:24px">
-    <div class="card">
-      <div class="card-header"><h3>📅 Financial Overview (6 Months)</h3></div>
-      <div class="card-body"><canvas id="finChart" height="200"></canvas></div>
+<!-- Main Grid -->
+<div class="grid-2">
+  <div>
+    <!-- Herd Overview Table -->
+    <div class="panel">
+      <div class="ph">
+        <span class="ph-title">Herd Overview</span>
+        <div class="ph-actions">
+          <span class="ph-meta">${animals.length} animals</span>
+          <a href="livestock.html" class="btn btn-sm">View all</a>
+          <a href="livestock-add.html" class="btn btn-primary btn-sm">+ Add</a>
+        </div>
+      </div>
+      <table class="tbl">
+        <thead><tr><th></th><th>ID / Name</th><th>Type</th><th>Weight</th><th>Temp</th><th>Breed</th><th>Status</th></tr></thead>
+        <tbody>${animalRows || '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text3)">No animals yet — <a href="livestock-add.html">add your first</a></td></tr>'}</tbody>
+      </table>
     </div>
-    <div class="card">
-      <div class="card-header"><h3>⚡ Quick Actions</h3></div>
-      <div class="card-body quick-actions" style="padding:12px">
-        <a href="livestock-add.html" class="quick-action">
-          <span class="qa-icon">🐄</span>
-          <div><div class="qa-title">Add Animal</div><div class="qa-sub">Register livestock</div></div>
-        </a>
-        <a href="crops-add.html" class="quick-action">
-          <span class="qa-icon">🌾</span>
-          <div><div class="qa-title">Add Plot</div><div class="qa-sub">Register crop plot</div></div>
-        </a>
-        <a href="transactions.html" class="quick-action">
-          <span class="qa-icon">💳</span>
-          <div><div class="qa-title">Add Transaction</div><div class="qa-sub">Log income/expense</div></div>
-        </a>
-        <a href="executive.html" class="quick-action">
-          <span class="qa-icon">📈</span>
-          <div><div class="qa-title">Executive View</div><div class="qa-sub">Full analytics</div></div>
-        </a>
+
+    <!-- Financial Chart -->
+    <div class="panel">
+      <div class="ph">
+        <span class="ph-title">Financial Overview — 6 Months</span>
+        <span class="ph-meta">Income vs Expenses</span>
+      </div>
+      <div style="padding:14px 16px 10px">
+        <canvas id="finChart" height="160"></canvas>
       </div>
     </div>
   </div>
 
-  <!-- Recent Animals + Health Alerts -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
-    <div class="card">
-      <div class="card-header">
-        <h3>🐄 Recent Animals</h3>
-        <a href="livestock.html" style="font-size:12px;color:var(--green-600);font-weight:700;text-decoration:none">View All →</a>
+  <div>
+    <!-- Weather -->
+    <div class="panel">
+      <div class="ph"><span class="ph-title">Weather</span><span class="ph-meta">Nigeria · Today</span></div>
+      <div class="wx-row">
+        <div class="wx-col"><div class="wx-t">NOW</div><div class="wx-i">☀️</div><div class="wx-v">27°C</div><div class="wx-r">0%</div></div>
+        <div class="wx-col"><div class="wx-t">15:00</div><div class="wx-i">⛅</div><div class="wx-v">28°C</div><div class="wx-r">5%</div></div>
+        <div class="wx-col"><div class="wx-t">18:00</div><div class="wx-i">🌧️</div><div class="wx-v">25°C</div><div class="wx-r">80%</div></div>
+        <div class="wx-col"><div class="wx-t">TMRW</div><div class="wx-i">☀️</div><div class="wx-v">29°C</div><div class="wx-r">10%</div></div>
       </div>
-      <div id="recent-animals"></div>
+      <div class="wx-warn">🌡 Heat stress risk after 14:00 — keep cattle shaded &amp; hydrated</div>
     </div>
-    <div class="card">
-      <div class="card-header"><h3>🔔 Upcoming Health Duties</h3></div>
-      <div id="health-alerts"></div>
+
+    <!-- Feed Inventory -->
+    <div class="panel">
+      <div class="ph">
+        <span class="ph-title">Feed Inventory</span>
+        <a href="livestock.html" class="btn btn-sm btn-primary">Manage</a>
+      </div>
+      <div class="feed-item"><span class="feed-name">Cattle Hay</span><div class="feed-track"><div class="feed-fill" style="width:72%;background:var(--green)"></div></div><span class="feed-pct">72%</span><button class="feed-btn">Order</button></div>
+      <div class="feed-item"><span class="feed-name">Pig Pellets</span><div class="feed-track"><div class="feed-fill" style="width:45%;background:var(--amber)"></div></div><span class="feed-pct" style="color:var(--amber)">45%</span><button class="feed-btn">Order</button></div>
+      <div class="feed-item"><span class="feed-name">Poultry Mix</span><div class="feed-track"><div class="feed-fill" style="width:18%;background:var(--red)"></div></div><span class="feed-pct" style="color:var(--red)">18% ⚠</span><button class="feed-btn urgent">Urgent</button></div>
+      <div class="feed-item"><span class="feed-name">Mineral Lick</span><div class="feed-track"><div class="feed-fill" style="width:60%;background:var(--blue)"></div></div><span class="feed-pct">60%</span><button class="feed-btn">Order</button></div>
+      <div class="feed-item"><span class="feed-name">Silage</span><div class="feed-track"><div class="feed-fill" style="width:84%;background:var(--green)"></div></div><span class="feed-pct">84%</span><button class="feed-btn">Order</button></div>
+    </div>
+
+    <!-- Upcoming Health -->
+    <div class="panel">
+      <div class="ph"><span class="ph-title">Upcoming Health Duties</span><a href="health.html" class="btn btn-sm">View all</a></div>
+      ${healthRows}
+    </div>
+
+    <!-- Activity Log -->
+    <div class="panel">
+      <div class="ph"><span class="ph-title">Activity Log</span><span class="ph-meta">Today</span></div>
+      ${sick > 0 ? `<div class="log-row"><div class="log-dot" style="background:var(--red)"></div><div><div class="log-msg">Animal health alert — ${sick} under care. Vet notified.</div><div class="log-time">09:14 today</div></div></div>` : ''}
+      <div class="log-row"><div class="log-dot" style="background:var(--amber)"></div><div><div class="log-msg">Morning feed complete — all barns dispensed</div><div class="log-time">08:30 today</div></div></div>
+      <div class="log-row"><div class="log-dot" style="background:var(--green)"></div><div><div class="log-msg">Sensor health check — all systems online</div><div class="log-time">07:00 today</div></div></div>
+      <div class="log-row"><div class="log-dot" style="background:var(--blue)"></div><div><div class="log-msg">Daily farm report generated successfully</div><div class="log-time">06:00 today</div></div></div>
     </div>
   </div>
+</div>
+`;
 
-  <!-- Recent Plots -->
-  <div class="card" id="plots-section"></div>
-  `;
-
-  // Render recent animals
-  const raEl = document.getElementById('recent-animals');
-  if (!animals.length) {
-    raEl.innerHTML = '<div class="empty-state" style="padding:30px"><div class="empty-icon">🐄</div><p>No animals yet</p></div>';
-  } else {
-    raEl.innerHTML = animals.slice(0,5).map(a => `
-      <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--gray-50)">
-        <div style="width:38px;height:38px;background:var(--green-50);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px">${SF.animalIcon(a.type)}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:13px;color:var(--gray-800)">${a.name||a.tagId}</div>
-          <div style="font-size:11px;color:var(--gray-400)">${a.tagId} · ${a.type}</div>
-        </div>
-        <span class="badge badge-${a.healthStatus==='healthy'?'green':a.healthStatus==='sick'?'red':'yellow'}">${a.healthStatus}</span>
-      </div>
-    `).join('');
-  }
-
-  // Health alerts
-  const haEl = document.getElementById('health-alerts');
-  if (!healthDue.length) {
-    haEl.innerHTML = '<div class="empty-state" style="padding:30px"><div class="empty-icon">💉</div><p>No upcoming health records</p></div>';
-  } else {
-    haEl.innerHTML = healthDue.map(h => {
-      const days = SF.daysUntil(h.nextDue);
-      const animal = SF.getAnimal(h.animalId);
-      return `
-      <div style="display:flex;align-items:start;gap:12px;padding:12px 16px;border-bottom:1px solid var(--gray-50)">
-        <div style="width:36px;height:36px;background:var(--yellow-100);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-top:2px">💉</div>
-        <div style="flex:1">
-          <div style="font-weight:700;font-size:13px">${h.vaccineName||h.recordType}</div>
-          <div style="font-size:11px;color:var(--gray-400)">${animal?.name||h.animalId}</div>
-          <div style="font-size:11px;margin-top:2px;color:${days<=3?'var(--red-600)':'var(--gray-400)'}">
-            Due: ${SF.fmtDate(h.nextDue)} (${days===0?'Today!':days+' days'})
-          </div>
-        </div>
-      </div>`;
-    }).join('');
-  }
-
-  // Recent plots
-  const psEl = document.getElementById('plots-section');
-  if (!plots.length) {
-    psEl.innerHTML = '';
-  } else {
-    psEl.innerHTML = `
-    <div class="card-header">
-      <h3>🌱 Crop Plots Status</h3>
-      <a href="crops.html" style="font-size:12px;color:var(--green-600);font-weight:700;text-decoration:none">View All →</a>
-    </div>
-    ${plots.slice(0,4).map(p=>{
-      const prog = SF.progress(p.plantingDate, p.expectedHarvest);
-      const sc = {planted:'badge-green',growing:'badge-blue',harvested:'badge-gray',preparing:'badge-yellow',fallow:'badge-gray'}[p.status]||'badge-gray';
-      return `<div style="padding:14px 16px;border-bottom:1px solid var(--gray-50)">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <div>
-            <span style="font-weight:700;font-size:13px">${p.name}</span>
-            <span style="font-size:12px;color:var(--gray-400);margin-left:8px">${p.cropType} · ${p.sizeHectare}ha</span>
-          </div>
-          <span class="badge ${sc}">${p.status}</span>
-        </div>
-        ${p.plantingDate&&p.expectedHarvest?`
-        <div class="progress-bar"><div class="progress-fill" style="width:${prog}%"></div></div>
-        <div class="progress-labels"><span>${SF.fmtDate(p.plantingDate)}</span><span>${prog}% · ${SF.fmtDate(p.expectedHarvest)}</span></div>
-        `:''}
-      </div>`;
-    }).join('')}`;
-  }
-
-  // Finance chart
-  const months = [], inc = [], exp = [];
-  for (let i=5;i>=0;i--) {
-    const d = new Date(); d.setMonth(d.getMonth()-i);
-    const ym = d.toISOString().slice(0,7);
-    months.push(d.toLocaleString('default',{month:'short'}));
-    inc.push(trans.filter(t=>t.type==='income'&&t.date?.startsWith(ym)).reduce((s,t)=>s+t.amount,0));
-    exp.push(trans.filter(t=>t.type==='expense'&&t.date?.startsWith(ym)).reduce((s,t)=>s+t.amount,0));
-  }
-  new Chart(document.getElementById('finChart').getContext('2d'),{
-    type:'bar',
-    data:{ labels:months, datasets:[
-      {label:'Income',data:inc,backgroundColor:'rgba(22,163,74,.7)',borderRadius:5},
-      {label:'Expense',data:exp,backgroundColor:'rgba(239,68,68,.6)',borderRadius:5}
-    ]},
-    options:{ responsive:true, scales:{ y:{ beginAtZero:true, ticks:{callback:v=>'₦'+v.toLocaleString()} }, x:{grid:{display:false}} }, plugins:{legend:{position:'top'}} }
-  });
-  </script>
+// Chart
+new Chart(document.getElementById('finChart').getContext('2d'),{
+  type:'bar',
+  data:{labels:mLabels,datasets:[
+    {label:'Income',data:mInc,backgroundColor:'rgba(45,122,58,.75)',borderRadius:5,borderSkipped:false},
+    {label:'Expense',data:mExp,backgroundColor:'rgba(168,48,48,.6)',borderRadius:5,borderSkipped:false}
+  ]},
+  options:{responsive:true,plugins:{legend:{position:'top',labels:{font:{family:'IBM Plex Mono',size:10}}}},
+    scales:{y:{beginAtZero:true,ticks:{callback:v=>'₦'+v.toLocaleString(),font:{family:'IBM Plex Mono',size:10}}},x:{grid:{display:false},ticks:{font:{family:'IBM Plex Mono',size:10}}}}}
+});
+</script>
 </body>
 </html>

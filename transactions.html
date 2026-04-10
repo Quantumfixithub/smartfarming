@@ -1,55 +1,47 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Transactions — SmartFarm</title>
-  <link rel="stylesheet" href="assets/css/app.css">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Financials — SmartFarm</title>
+<link rel="stylesheet" href="assets/css/app.css">
 </head>
-<body class="shell">
-  <div id="app-shell"></div>
-  <script src="assets/js/app.js"></script>
-  <script src="assets/js/nav.js"></script>
-  <script>
-  SF.requireLogin();
-  buildNav('Transactions', 'dashboard');
+<body class="shell"><div id="app-shell"></div>
+<script src="assets/js/app.js"></script><script src="assets/js/nav.js"></script>
+<script>
+SF.requireLogin();
+buildShell('Financials','transactions');
+const pc=document.getElementById('page-content');
+let filterType='';
 
-  const pc = document.getElementById('page-content');
-  let filterType = '';
+function render(){
+  let trans=SF.getTransactions();
+  const allT=trans;
+  const income =allT.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const expense=allT.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  if(filterType) trans=trans.filter(t=>t.type===filterType);
+  trans.sort((a,b)=>new Date(b.date)-new Date(a.date));
 
-  function render() {
-    let trans = SF.getTransactions();
-    if (filterType) trans = trans.filter(t=>t.type===filterType);
-    trans.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  // Category breakdown
+  const incCats=[...new Set(allT.filter(t=>t.type==='income').map(t=>t.category))];
+  const expCats=[...new Set(allT.filter(t=>t.type==='expense').map(t=>t.category))];
 
-    const allT    = SF.getTransactions();
-    const income  = allT.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-    const expense = allT.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  pc.innerHTML=`
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+    <div><h2 style="font-size:18px;font-weight:800">Financials</h2>
+    <p class="text-muted" style="font-size:12px;margin-top:2px">Track income and expenses</p></div>
+  </div>
 
-    pc.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
-      <h2 style="font-size:22px;font-weight:800">💳 Transactions</h2>
-    </div>
+  <div class="kpi-row cols-4" style="margin-bottom:16px">
+    <div class="kpi" style="--kpi-accent:var(--green)"><div class="kpi-lbl">Total Income</div><div class="kpi-val good">${SF.currency(income)}</div><div class="kpi-delta delta-up">${allT.filter(t=>t.type==='income').length} transactions</div></div>
+    <div class="kpi" style="--kpi-accent:var(--red)"><div class="kpi-lbl">Total Expenses</div><div class="kpi-val bad">${SF.currency(expense)}</div><div class="kpi-delta delta-dn">${allT.filter(t=>t.type==='expense').length} transactions</div></div>
+    <div class="kpi" style="--kpi-accent:${(income-expense)>=0?'var(--green)':'var(--red)'}"><div class="kpi-lbl">Net Profit</div><div class="kpi-val ${(income-expense)>=0?'good':'bad'}">${SF.currency(income-expense)}</div><div class="kpi-delta ${(income-expense)>=0?'delta-up':'delta-dn'}">Income minus Expenses</div></div>
+    <div class="kpi" style="--kpi-accent:var(--amber)"><div class="kpi-lbl">Margin</div><div class="kpi-val">${income>0?Math.round((income-expense)/income*100):0}%</div><div class="kpi-delta delta-nt">Profit margin</div></div>
+  </div>
 
-    <div class="stat-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px">
-      <div class="stat-card" style="text-align:center">
-        <div class="stat-value" style="color:var(--green-600)">${SF.currency(income)}</div>
-        <div class="stat-label">Total Income</div>
-      </div>
-      <div class="stat-card" style="text-align:center">
-        <div class="stat-value" style="color:var(--red-600)">${SF.currency(expense)}</div>
-        <div class="stat-label">Total Expenses</div>
-      </div>
-      <div class="stat-card" style="text-align:center">
-        <div class="stat-value" style="color:${(income-expense)>=0?'var(--green-700)':'var(--red-600)'}">${SF.currency(income-expense)}</div>
-        <div class="stat-label">Net Profit</div>
-      </div>
-    </div>
-
+  <div class="grid-2b" style="margin-bottom:14px">
     <!-- Add Form -->
-    <div class="card" style="margin-bottom:20px">
-      <div class="card-header"><h3>➕ Add Transaction</h3></div>
-      <div class="card-body">
+    <div class="panel">
+      <div class="ph"><span class="ph-title">+ Add Transaction</span></div>
+      <div style="padding:16px">
         <div class="form-grid" style="margin-bottom:12px">
           <div class="form-group"><label class="form-label">Type</label>
             <select id="tType" class="form-select">
@@ -58,62 +50,82 @@
             </select>
           </div>
           <div class="form-group"><label class="form-label">Category <span class="req">*</span></label>
-            <input type="text" id="tCat" class="form-input" placeholder="e.g. Milk Sale, Feed Cost"></div>
+            <input type="text" id="tCat" class="form-input" placeholder="e.g. Milk Sale, Feed Cost">
+          </div>
           <div class="form-group"><label class="form-label">Amount (₦) <span class="req">*</span></label>
-            <input type="number" id="tAmount" class="form-input" step="0.01" placeholder="0.00"></div>
+            <input type="number" id="tAmt" class="form-input" step="0.01" placeholder="0.00">
+          </div>
           <div class="form-group"><label class="form-label">Date</label>
-            <input type="date" id="tDate" class="form-input" value="${new Date().toISOString().slice(0,10)}"></div>
-          <div class="form-group" style="grid-column:1/-1"><label class="form-label">Description</label>
-            <input type="text" id="tDesc" class="form-input" placeholder="Optional notes"></div>
+            <input type="date" id="tDate" class="form-input" value="${new Date().toISOString().slice(0,10)}">
+          </div>
+          <div class="form-group form-span-2"><label class="form-label">Description</label>
+            <input type="text" id="tDesc" class="form-input" placeholder="Optional notes">
+          </div>
         </div>
         <button onclick="addTrans()" class="btn btn-primary">💾 Save Transaction</button>
       </div>
     </div>
 
-    <!-- Filter + List -->
-    <div class="card">
-      <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--gray-100);flex-wrap:wrap">
-        ${[['','All'],['income','Income'],['expense','Expenses']].map(([v,l])=>`
-          <button onclick="setFilter('${v}')" style="padding:6px 14px;border-radius:99px;border:none;font-size:12px;font-weight:700;cursor:pointer;background:${filterType===v?'var(--green-100)':'var(--gray-100)'};color:${filterType===v?'var(--green-700)':'var(--gray-500)'}">${l}</button>
-        `).join('')}
-        <span style="margin-left:auto;font-size:12px;color:var(--gray-400)">${trans.length} records</span>
+    <!-- Category Breakdown -->
+    <div>
+      <div class="panel" style="margin-bottom:14px">
+        <div class="ph"><span class="ph-title">Revenue Breakdown</span></div>
+        ${incCats.map(c=>{
+          const v=allT.filter(t=>t.type==='income'&&t.category===c).reduce((s,t)=>s+t.amount,0);
+          return `<div class="fin-row"><span class="fin-lbl">${c}</span><span class="fin-val income">${SF.currency(v)}</span></div>`;
+        }).join('')||'<div class="fin-row"><span class="text-muted">No income yet</span></div>'}
+        <div class="fin-row total"><span class="fin-lbl" style="font-weight:700">Total Income</span><span class="fin-val income" style="font-size:14px">${SF.currency(income)}</span></div>
       </div>
-      ${!trans.length?`<div class="empty-state" style="padding:40px"><div class="empty-icon">💳</div><p>No transactions yet.</p></div>`:
-        trans.map(t=>`
-        <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--gray-50)">
-          <div style="width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;background:${t.type==='income'?'var(--green-100)':'var(--red-100)'}; color:${t.type==='income'?'var(--green-700)':'var(--red-600)'}">
-            ${t.type==='income'?'+':'-'}
-          </div>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.description||t.category}</div>
-            <div style="font-size:11px;color:var(--gray-400)">${SF.fmtDate(t.date)} · ${t.category}</div>
-          </div>
-          <span style="font-weight:800;font-size:14px;color:${t.type==='income'?'var(--green-700)':'var(--red-600)'}">
-            ${t.type==='income'?'+':'-'}${SF.currency(t.amount)}
-          </span>
-        </div>`).join('')}
+      <div class="panel">
+        <div class="ph"><span class="ph-title">Cost Breakdown</span></div>
+        ${expCats.map(c=>{
+          const v=allT.filter(t=>t.type==='expense'&&t.category===c).reduce((s,t)=>s+t.amount,0);
+          return `<div class="fin-row"><span class="fin-lbl">${c}</span><span class="fin-val expense">${SF.currency(v)}</span></div>`;
+        }).join('')||'<div class="fin-row"><span class="text-muted">No expenses yet</span></div>'}
+        <div class="fin-row total"><span class="fin-lbl" style="font-weight:700">Total Expenses</span><span class="fin-val expense" style="font-size:14px">${SF.currency(expense)}</span></div>
+      </div>
     </div>
-    `;
-  }
+  </div>
 
-  function setFilter(v) { filterType=v; render(); }
+  <!-- Transaction List -->
+  <div class="panel">
+    <div style="display:flex;align-items:center;gap:8px;padding:11px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap">
+      <span style="font-size:12px;font-weight:700">All Transactions</span>
+      <div style="display:flex;gap:6px;margin-left:auto">
+        ${[['','All'],['income','Income'],['expense','Expenses']].map(([v,l])=>
+          `<button onclick="setFilter('${v}')" class="btn btn-sm ${filterType===v?'btn-primary':''}">${l}</button>`
+        ).join('')}
+      </div>
+      <span class="ph-meta">${trans.length} records</span>
+    </div>
+    ${!trans.length?`<div class="empty" style="padding:30px"><div class="empty-ico">₦</div><h3>No Transactions</h3><p>Add your first income or expense above.</p></div>`:
+      trans.map(t=>`<div class="fin-row">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:32px;height:32px;border-radius:8px;background:${t.type==='income'?'var(--green-l)':'var(--red-l)'};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;color:${t.type==='income'?'var(--green-t)':'var(--red)'}">
+            ${t.type==='income'?'+':'−'}
+          </div>
+          <div>
+            <div style="font-size:12px;font-weight:700;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.description||t.category}</div>
+            <div class="monospace" style="font-size:10px;color:var(--text3)">${SF.fmtDate(t.date)} · ${t.category}</div>
+          </div>
+        </div>
+        <span class="fin-val ${t.type==='income'?'income':'expense'}">${t.type==='income'?'+':'-'}${SF.currency(t.amount)}</span>
+      </div>`).join('')}
+  </div>
+  `;
+}
 
-  function addTrans() {
-    const cat    = document.getElementById('tCat').value.trim();
-    const amount = +document.getElementById('tAmount').value;
-    if (!cat || !amount) { SF.toast('Category and amount required.','error'); return; }
-    SF.addTransaction({
-      type:        document.getElementById('tType').value,
-      category:    cat,
-      amount,
-      description: document.getElementById('tDesc').value.trim(),
-      date:        document.getElementById('tDate').value,
-    });
-    SF.toast('Transaction saved!');
-    render();
-  }
+function setFilter(v){filterType=v;render();}
+window.setFilter=setFilter;
 
-  render();
-  </script>
-</body>
-</html>
+function addTrans(){
+  const cat=document.getElementById('tCat').value.trim();
+  const amt=+document.getElementById('tAmt').value;
+  if(!cat||!amt){SF.toast('Category and amount required.','error');return;}
+  SF.addTransaction({type:document.getElementById('tType').value,category:cat,amount:amt,description:document.getElementById('tDesc').value.trim(),date:document.getElementById('tDate').value});
+  SF.toast('Transaction saved!');render();
+}
+window.addTrans=addTrans;
+
+render();
+</script></body></html>
