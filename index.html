@@ -1,9 +1,1821 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta http-equiv="refresh" content="0;url=login.html"><title>SmartFarm</title>
-<script src="assets/js/app.js"></script>
-<script>SF.seedIfEmpty();window.location.href=SF.session()?'dashboard.html':'login.html';</script>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SmartFarm — Farm Management</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --green:#2d7a3a;--green-l:#eaf4e0;--green-m:#b8dda0;--green-t:#1a5c28;
+  --amber:#b87418;--amber-l:#faeeda;--amber-m:#f5c97a;
+  --red:#a83030;--red-l:#fceaea;--red-m:#f0a0a0;
+  --blue:#1a60a8;--blue-l:#e4f0fc;--blue-m:#88b8ec;
+  --bg:#f2f0ea;--surf:#fdfcf8;--surf2:#f0ece4;
+  --bdr:rgba(60,40,10,.09);--bdr2:rgba(60,40,10,.16);
+  --text:#1e1408;--text2:#5a4020;--text3:#9a7850;
+  --r:10px;--rl:14px;
+  --font:'Syne',sans-serif;--mono:'IBM Plex Mono',monospace;
+}
+html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--text);font-size:13px;line-height:1.5}
+
+/* AUTH */
+.auth-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,var(--green-t) 0%,var(--green) 100%);padding:20px}
+.auth-box{background:var(--surf);border-radius:var(--rl);padding:32px;width:100%;max-width:400px;border:1px solid var(--bdr)}
+.auth-brand{text-align:center;margin-bottom:24px}
+.auth-icon{width:52px;height:52px;background:var(--green-t);border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:10px}
+.auth-brand h1{font-size:20px;font-weight:800;color:var(--text)}
+.auth-brand h1 em{color:var(--green-t);font-style:normal}
+.auth-brand p{font-size:12px;color:var(--text3);margin-top:3px}
+.auth-box h2{font-size:15px;font-weight:700;margin-bottom:18px}
+.auth-footer{text-align:center;margin-top:14px;font-size:12px;color:rgba(255,255,255,.65)}
+.auth-footer a{color:#fff;font-weight:700;cursor:pointer}
+
+/* APP SHELL */
+#app{display:none;height:100vh;overflow:hidden}
+#app.visible{display:grid;grid-template-columns:210px 1fr;grid-template-rows:48px 1fr}
+
+/* TOPBAR */
+.topbar{grid-column:1/-1;grid-row:1;display:flex;align-items:center;justify-content:space-between;padding:0 18px;background:var(--surf);border-bottom:1px solid var(--bdr);z-index:50}
+.tb-brand{display:flex;align-items:center;gap:9px}
+.tb-logo{width:30px;height:30px;background:var(--green);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.tb-name{font-size:15px;font-weight:700}
+.tb-name em{color:var(--green-t);font-style:normal}
+.tb-right{display:flex;align-items:center;gap:10px}
+.live-pill{display:flex;align-items:center;gap:5px;background:var(--green-l);border:1px solid var(--green-m);padding:4px 10px;border-radius:20px;font-size:11px;color:var(--green-t);font-family:var(--mono)}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.tb-time{font-size:11px;color:var(--text3);font-family:var(--mono)}
+.tb-av{width:28px;height:28px;border-radius:50%;background:var(--green-l);border:1px solid var(--green-m);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--green-t);cursor:pointer}
+.menu-btn{display:none;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text2);padding:4px}
+
+/* SIDEBAR */
+.sidebar{grid-column:1;grid-row:2;background:var(--surf);border-right:1px solid var(--bdr);display:flex;flex-direction:column;overflow-y:auto}
+.sb-farm{margin:12px 10px;padding:10px 12px;background:var(--green-l);border:1px solid var(--green-m);border-radius:var(--r)}
+.sb-farm-tag{font-size:9px;font-family:var(--mono);color:var(--green-t);text-transform:uppercase;letter-spacing:.07em}
+.sb-farm-name{font-size:12px;font-weight:700;color:var(--green-t);margin-top:2px}
+.sb-farm-loc{font-size:10px;color:var(--text3);margin-top:1px}
+.sb-section{font-size:9px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.08em;padding:10px 14px 4px}
+.nav-link{display:flex;align-items:center;gap:9px;padding:8px 14px;font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;border-left:2.5px solid transparent;transition:all .14s;margin-bottom:1px}
+.nav-link:hover{background:var(--surf2);color:var(--text)}
+.nav-link.active{background:var(--green-l);color:var(--green-t);border-left-color:var(--green)}
+.nav-icon{font-size:14px;width:18px;text-align:center}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:9px;border-radius:9px;padding:1px 5px;font-family:var(--mono)}
+.sb-footer{margin-top:auto;padding:12px 14px;border-top:1px solid var(--bdr)}
+.sb-user{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+.sb-av{width:30px;height:30px;border-radius:50%;background:var(--green-l);border:1px solid var(--green-m);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--green-t);flex-shrink:0}
+.sb-uname{font-size:12px;font-weight:700}
+.sb-role{font-size:10px;color:var(--text3)}
+.sb-logout{width:100%;padding:7px;background:none;border:1px solid var(--bdr2);border-radius:var(--r);font-size:11px;color:var(--text3);cursor:pointer;font-family:var(--font);transition:.14s;text-align:left;display:flex;align-items:center;gap:6px}
+.sb-logout:hover{border-color:var(--red);color:var(--red)}
+
+/* CONTENT */
+.content{grid-column:2;grid-row:2;overflow-y:auto;background:var(--bg)}
+.page{display:none;padding:18px 20px}
+.page.active{display:block}
+
+/* OVERLAY for mobile */
+#overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:40}
+#overlay.show{display:block}
+
+/* ALERT */
+.alert-bar{display:flex;align-items:center;gap:10px;background:var(--red-l);border:1px solid var(--red-m);border-radius:var(--r);padding:10px 14px;margin-bottom:16px;font-size:12px;color:var(--red);animation:slideDown .3s ease}
+@keyframes slideDown{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+.alert-link{color:var(--red);text-decoration:underline;cursor:pointer;margin-left:4px;font-weight:700}
+
+/* KPI ROW */
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px}
+.kpis.k4{grid-template-columns:repeat(4,1fr)}
+.kpi{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);padding:14px;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--ka,var(--amber));border-radius:var(--r) var(--r) 0 0}
+.kpi-lbl{font-size:9px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px}
+.kpi-val{font-size:22px;font-weight:700;letter-spacing:-.5px;line-height:1}
+.kpi-val.g{color:var(--green-t)} .kpi-val.r{color:var(--red)} .kpi-val.a{color:var(--amber)}
+.kpi-d{display:inline-flex;font-size:10px;font-family:var(--mono);margin-top:6px;padding:2px 7px;border-radius:20px}
+.du{background:var(--green-l);color:var(--green-t)} .dd{background:var(--red-l);color:var(--red)} .dn{background:var(--amber-l);color:var(--amber)}
+
+/* GRID */
+.g2{display:grid;grid-template-columns:3fr 2fr;gap:14px}
+.g2b{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+
+/* PANEL */
+.panel{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rl);overflow:hidden;margin-bottom:14px}
+.panel:last-child{margin-bottom:0}
+.ph{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-bottom:1px solid var(--bdr)}
+.ph-t{font-size:12px;font-weight:700}
+.ph-m{font-size:10px;color:var(--text3);font-family:var(--mono)}
+.ph-acts{display:flex;align-items:center;gap:6px}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;font-size:11px;font-weight:700;border-radius:var(--r);border:1px solid var(--bdr2);background:transparent;color:var(--text2);cursor:pointer;font-family:var(--font);transition:.14s;text-decoration:none}
+.btn:hover{border-color:var(--green);color:var(--green-t)}
+.btn.p{background:var(--green-l);color:var(--green-t);border-color:var(--green-m)}
+.btn.p:hover{background:var(--green);color:#fff;border-color:var(--green)}
+.btn.d{background:var(--red-l);color:var(--red);border-color:var(--red-m)}
+.btn.sm{padding:3px 9px;font-size:10px}
+.btn.bl{width:100%;justify-content:center;padding:9px}
+
+/* CHIPS */
+.chip{display:inline-flex;align-items:center;font-size:9px;font-weight:700;padding:2px 8px;border-radius:20px;font-family:var(--mono);white-space:nowrap}
+.chip.ok{background:var(--green-l);color:var(--green-t);border:1px solid var(--green-m)}
+.chip.bad{background:var(--red-l);color:var(--red);border:1px solid var(--red-m)}
+.chip.warn{background:var(--amber-l);color:var(--amber);border:1px solid var(--amber-m)}
+.chip.blue{background:var(--blue-l);color:var(--blue);border:1px solid var(--blue-m)}
+.chip.gray{background:var(--surf2);color:var(--text3);border:1px solid var(--bdr2)}
+
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse;font-size:11px}
+.tbl th{text-align:left;padding:8px 14px;font-size:9px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--bdr);font-weight:500}
+.tbl td{padding:10px 14px;border-bottom:1px solid var(--bdr);vertical-align:middle;color:var(--text2)}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:var(--surf2);cursor:pointer}
+.a-ico{width:28px;height:28px;border-radius:50%;background:var(--amber-l);display:flex;align-items:center;justify-content:center;font-size:15px}
+
+/* FEED BARS */
+.feed-item{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--bdr)}
+.feed-item:last-child{border-bottom:none}
+.feed-name{font-size:11px;font-weight:700;min-width:90px;color:var(--text2)}
+.feed-track{flex:1;height:6px;background:var(--surf2);border-radius:3px;overflow:hidden;border:1px solid var(--bdr)}
+.feed-fill{height:100%;border-radius:3px}
+.feed-pct{font-size:10px;font-family:var(--mono);color:var(--text3);min-width:36px;text-align:right}
+.feed-btn{font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid var(--bdr2);background:none;color:var(--text3);cursor:pointer;font-family:var(--font);transition:.14s}
+.feed-btn:hover{border-color:var(--amber);color:var(--amber)}
+.feed-btn.urg{border-color:var(--red);color:var(--red)}
+
+/* LOG ROWS */
+.log-row{display:flex;align-items:flex-start;gap:10px;padding:9px 16px;border-bottom:1px solid var(--bdr)}
+.log-row:last-child{border-bottom:none}
+.log-row:hover{background:var(--surf2)}
+.log-dot{width:7px;height:7px;border-radius:50%;margin-top:4px;flex-shrink:0}
+.log-msg{font-size:11px;color:var(--text2);flex:1;line-height:1.5}
+.log-time{font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:1px}
+
+/* WEATHER */
+.wx-row{display:flex;justify-content:space-around;padding:14px 18px}
+.wx-col{text-align:center}
+.wx-t{font-size:9px;font-family:var(--mono);color:var(--text3);margin-bottom:5px}
+.wx-i{font-size:22px;margin-bottom:4px}
+.wx-v{font-size:13px;font-weight:700}
+.wx-r{font-size:9px;color:var(--blue);margin-top:2px}
+.wx-warn{background:var(--amber-l);border-top:1px solid var(--amber-m);padding:8px 16px;font-size:11px;color:var(--amber)}
+
+/* HEALTH CARDS */
+.h-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.hcard{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);padding:16px;cursor:pointer;transition:all .18s}
+.hcard:hover{border-color:var(--amber-m);box-shadow:0 4px 16px rgba(100,60,0,.1)}
+.hcard-top{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.hcard-ico{width:42px;height:42px;border-radius:50%;background:var(--amber-l);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.hcard-name{font-size:14px;font-weight:700}
+.hcard-breed{font-size:10px;color:var(--text3);margin-top:1px}
+.hcard-ms{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.hm{background:var(--surf2);border-radius:var(--r);padding:8px;text-align:center}
+.hm-l{font-size:9px;color:var(--text3);margin-bottom:2px}
+.hm-v{font-size:14px;font-weight:700}
+.hm-v.bad{color:var(--red)} .hm-v.warn{color:var(--amber)}
+.hcard-note{font-size:11px;color:var(--text3);line-height:1.6}
+
+/* HEATMAP */
+.hm-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;padding:14px 16px}
+.hm-cell{aspect-ratio:1.4;border-radius:var(--r);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:9px;font-family:var(--mono);cursor:pointer;border:1px solid transparent;transition:transform .13s}
+.hm-cell:hover{transform:scale(1.06)}
+.hm-g{background:var(--green-l);color:var(--green-t);border-color:var(--green-m)}
+.hm-m{background:#edf5e4;color:var(--green);border-color:var(--green-m)}
+.hm-w{background:var(--amber-l);color:var(--amber);border-color:var(--amber-m)}
+.hm-b{background:var(--red-l);color:var(--red);border-color:var(--red-m);animation:blink 1.2s ease-in-out infinite}
+.hm-o{background:var(--surf2);color:var(--text3);border-color:var(--bdr)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* FORMS */
+.fg{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fl{font-size:10px;font-weight:700;color:var(--text2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.04em}
+.fl .req{color:var(--red)}
+.fi,.fs,.ft{width:100%;padding:8px 12px;border:1px solid var(--bdr2);border-radius:var(--r);font-size:12px;font-family:var(--font);background:var(--surf);color:var(--text);transition:.15s}
+.fi:focus,.fs:focus,.ft:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px rgba(45,122,58,.1)}
+.ft{resize:vertical;min-height:70px}
+.f2{grid-column:1/-1}
+
+/* SETTINGS TOGGLE */
+.s-row{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--bdr)}
+.s-row:last-child{border-bottom:none}
+.s-key{font-size:12px;font-weight:700}
+.s-desc{font-size:10px;color:var(--text3);margin-top:2px}
+.sw{position:relative;width:38px;height:22px;flex-shrink:0}
+.sw input{opacity:0;width:0;height:0}
+.sw-sl{position:absolute;inset:0;background:var(--surf2);border:1px solid var(--bdr2);border-radius:11px;cursor:pointer;transition:.2s}
+.sw-sl::before{content:'';position:absolute;width:16px;height:16px;left:2px;top:2px;background:var(--text3);border-radius:50%;transition:.2s}
+.sw input:checked+.sw-sl{background:var(--green-l);border-color:var(--green-m)}
+.sw input:checked+.sw-sl::before{transform:translateX(16px);background:var(--green)}
+
+/* FINANCIAL */
+.fin-row{display:flex;justify-content:space-between;align-items:center;padding:9px 16px;border-bottom:1px solid var(--bdr);font-size:12px}
+.fin-row:last-child{border-bottom:none}
+.fin-row.tot{background:var(--surf2)}
+.fin-lbl{color:var(--text2)}
+.fin-val{font-weight:700;font-family:var(--mono)}
+.fin-val.inc{color:var(--green-t)} .fin-val.exp{color:var(--red)}
+
+/* ACTIONS */
+.act-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px}
+.abtn{display:flex;flex-direction:column;gap:4px;padding:14px;background:var(--surf2);border:1px solid var(--bdr);border-radius:var(--r);cursor:pointer;font-family:var(--font);color:var(--text);text-align:left;transition:.18s}
+.abtn:hover{border-color:var(--amber-m);background:var(--amber-l)}
+.abtn-i{font-size:22px}.abtn-l{font-size:12px;font-weight:700}.abtn-d{font-size:10px;color:var(--text3)}
+
+/* BREADCRUMB */
+.bc{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text3);margin-bottom:14px;flex-wrap:wrap}
+.bc a{color:var(--green-t);font-weight:700;cursor:pointer}
+
+/* PROGRESS */
+.prog-wrap{margin:6px 0}
+.prog-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:4px}
+.prog-bar{height:7px;background:var(--surf2);border-radius:4px;overflow:hidden;border:1px solid var(--bdr)}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--green),#5aaa6a);border-radius:4px;transition:.4s}
+
+/* EMPTY */
+.empty{text-align:center;padding:50px 20px}
+.empty-i{font-size:48px;margin-bottom:12px}
+.empty h3{font-size:16px;font-weight:700;margin-bottom:6px}
+.empty p{color:var(--text3);font-size:13px;margin-bottom:16px}
+
+/* MISC */
+.mono{font-family:var(--mono)}
+.t-bad{color:var(--red)} .t-good{color:var(--green-t)} .t-warn{color:var(--amber)} .t-dim{color:var(--text3)}
+
+/* DETAIL GRID */
+.dg{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;padding:14px}
+.d-item{background:var(--surf2);border-radius:var(--r);padding:10px;border:1px solid var(--bdr)}
+.d-lbl{font-size:9px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+.d-val{font-size:13px;font-weight:700;text-transform:capitalize}
+
+/* TABS */
+.tab-bar{display:flex;border-bottom:1px solid var(--bdr);padding:0 4px;overflow-x:auto;background:var(--surf)}
+.tab-btn{padding:10px 16px;font-size:12px;font-weight:700;color:var(--text3);background:none;border:none;border-bottom:2.5px solid transparent;margin-bottom:-1px;cursor:pointer;font-family:var(--font);white-space:nowrap;transition:.15s}
+.tab-btn.on{color:var(--green-t);border-bottom-color:var(--green)}
+.tab-pane{display:none} .tab-pane.on{display:block}
+
+/* PLAN GRID */
+.plan-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:14px}
+.plan{background:var(--surf2);border:1px solid var(--bdr);border-radius:var(--rl);padding:16px;cursor:pointer;transition:.18s}
+.plan:hover{border-color:var(--bdr2)}
+.plan.feat{border:2px solid var(--green-m)}
+.plan-badge{font-size:9px;background:var(--green-l);color:var(--green-t);padding:3px 8px;border-radius:20px;display:inline-block;margin-bottom:6px;font-family:var(--mono)}
+.plan-name{font-size:14px;font-weight:700;margin-bottom:3px}
+.plan-price{font-size:22px;font-weight:700;color:var(--green-t);margin:8px 0 3px}
+.plan-price span{font-size:11px;font-weight:400;color:var(--text3)}
+.plan-desc{font-size:10px;color:var(--text3);margin-bottom:12px;line-height:1.6}
+.plan-feat{font-size:11px;color:var(--text2);padding:4px 0;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:5px}
+.plan-feat:last-child{border-bottom:none}
+.plan-feat.off{color:var(--text3)}
+
+/* ROADMAP */
+.rm-list{padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.rm-step{display:flex;gap:10px;align-items:flex-start}
+.rm-num{width:22px;height:22px;border-radius:50%;background:var(--green-l);border:1px solid var(--green-m);color:var(--green-t);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.rm-title{font-size:12px;font-weight:700}
+.rm-desc{font-size:11px;color:var(--text3);margin-top:2px;line-height:1.5}
+
+/* MOBILE */
+@media(max-width:768px){
+  #app.visible{grid-template-columns:1fr}
+  .sidebar{grid-column:1;position:fixed;left:0;top:48px;height:calc(100vh - 48px);z-index:45;transform:translateX(-100%);transition:.25s;box-shadow:none}
+  .sidebar.open{transform:translateX(0);box-shadow:4px 0 20px rgba(0,0,0,.15)}
+  .menu-btn{display:block}
+  .content{grid-column:1}
+  .g2,.g2b,.g3,.h-grid,.fgrid,.act-grid,.plan-grid{grid-template-columns:1fr}
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .kpis.k4{grid-template-columns:repeat(2,1fr)}
+  .dg{grid-template-columns:1fr 1fr}
+}
+@media(max-width:380px){.kpis{grid-template-columns:1fr}}
+</style>
 </head>
-<body style="background:#1a5c28;display:flex;align-items:center;justify-content:center;min-height:100vh;color:#fff;font-family:sans-serif">
-<div style="text-align:center"><div style="font-size:48px">🌾</div><p style="margin-top:10px;opacity:.7">Loading SmartFarm…</p></div>
-</body></html>
+<body>
+
+<!-- ============================================================ AUTH SCREENS -->
+<div id="auth-screen" class="auth-screen">
+  <div>
+    <div class="auth-box">
+      <div class="auth-brand">
+        <div class="auth-icon">🌾</div>
+        <h1>Smart<em>Farm</em></h1>
+        <p>Farm Management System</p>
+      </div>
+      <h2>Welcome back</h2>
+      <div id="login-err" class="alert-bar" style="display:none"></div>
+      <div class="fg"><label class="fl">Email</label><input type="email" id="login-email" class="fi" value="admin@smartfarm.com" placeholder="you@example.com"></div>
+      <div class="fg"><label class="fl">Password</label><input type="password" id="login-pwd" class="fi" value="password" placeholder="••••••••"></div>
+      <button onclick="doLogin()" class="btn p bl" style="margin-top:4px;font-size:13px">Sign In →</button>
+      <div style="margin-top:14px;padding:10px;background:var(--surf2);border-radius:var(--r);font-size:11px;color:var(--text3);text-align:center;font-family:var(--mono);border:1px solid var(--bdr)">Demo: admin@smartfarm.com / password</div>
+    </div>
+    <div style="text-align:center;margin-top:14px;font-size:12px;color:rgba(255,255,255,.65)">
+      No account? <a onclick="showRegister()" style="color:#fff;font-weight:700;cursor:pointer">Register here</a>
+    </div>
+  </div>
+</div>
+
+<div id="reg-screen" class="auth-screen" style="display:none">
+  <div>
+    <div class="auth-box">
+      <div class="auth-brand">
+        <div class="auth-icon">🌾</div>
+        <h1>Smart<em>Farm</em></h1>
+        <p>Create your farm account</p>
+      </div>
+      <h2>Register</h2>
+      <div id="reg-err" class="alert-bar" style="display:none"></div>
+      <div class="fgrid">
+        <div class="fg"><label class="fl">Full Name <span class="req">*</span></label><input type="text" id="reg-name" class="fi" placeholder="John Doe"></div>
+        <div class="fg"><label class="fl">Farm Name</label><input type="text" id="reg-farm" class="fi" placeholder="My Farm"></div>
+        <div class="fg f2"><label class="fl">Email <span class="req">*</span></label><input type="email" id="reg-email" class="fi" placeholder="you@example.com"></div>
+        <div class="fg"><label class="fl">Password <span class="req">*</span></label><input type="password" id="reg-pwd" class="fi" placeholder="Min. 6 chars"></div>
+        <div class="fg"><label class="fl">Confirm</label><input type="password" id="reg-pwd2" class="fi" placeholder="Repeat password"></div>
+      </div>
+      <button onclick="doRegister()" class="btn p bl" style="margin-top:6px;font-size:13px">Create Account →</button>
+    </div>
+    <div style="text-align:center;margin-top:14px;font-size:12px;color:rgba(255,255,255,.65)">
+      Already registered? <a onclick="showLogin()" style="color:#fff;font-weight:700;cursor:pointer">Sign in</a>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ APP SHELL -->
+<div id="app">
+  <div id="overlay" onclick="closeSidebar()"></div>
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="tb-brand">
+      <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+      <div class="tb-logo">🌾</div>
+      <div class="tb-name">Smart<em>Farm</em></div>
+    </div>
+    <div class="tb-right">
+      <div class="live-pill"><div class="live-dot"></div>LIVE</div>
+      <div class="tb-time" id="clock">--:--</div>
+      <div class="tb-av" id="tb-av">?</div>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <div class="sb-farm">
+      <div class="sb-farm-tag">Active Farm</div>
+      <div class="sb-farm-name" id="sb-farm-name">—</div>
+      <div class="sb-farm-loc" id="sb-farm-loc">—</div>
+    </div>
+    <div class="sb-section">Overview</div>
+    <div class="nav-link active" id="nav-dashboard" onclick="go('dashboard')"><span class="nav-icon">⊞</span>Dashboard</div>
+    <div class="nav-link" id="nav-livestock" onclick="go('livestock')"><span class="nav-icon">🐄</span>Herd <span id="sick-badge" class="nav-badge" style="display:none">0</span></div>
+    <div class="nav-link" id="nav-health" onclick="go('health')"><span class="nav-icon">❤</span>Health <span id="sick-badge2" class="nav-badge" style="display:none">0</span></div>
+    <div class="sb-section">Operations</div>
+    <div class="nav-link" id="nav-crops" onclick="go('crops')"><span class="nav-icon">🌾</span>Crops</div>
+    <div class="nav-link" id="nav-executive" onclick="go('executive')"><span class="nav-icon">📊</span>Analytics</div>
+    <div class="nav-link" id="nav-transactions" onclick="go('transactions')"><span class="nav-icon">₦</span>Financials</div>
+    <div class="sb-section">Business</div>
+    <div class="nav-link" id="nav-pricing" onclick="go('pricing')"><span class="nav-icon">🏷</span>Pricing Plans</div>
+    <div class="nav-link" id="nav-settings" onclick="go('settings')"><span class="nav-icon">⚙</span>Settings</div>
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="sb-av" id="sb-av">?</div>
+        <div><div class="sb-uname" id="sb-uname">—</div><div class="sb-role" id="sb-role">—</div></div>
+      </div>
+      <button class="sb-logout" onclick="doLogout()">↩ Sign out</button>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page active"></div>
+
+    <!-- LIVESTOCK -->
+    <div id="page-livestock" class="page"></div>
+
+    <!-- ANIMAL VIEW -->
+    <div id="page-animal-view" class="page"></div>
+
+    <!-- ANIMAL ADD -->
+    <div id="page-animal-add" class="page"></div>
+
+    <!-- ANIMAL EDIT -->
+    <div id="page-animal-edit" class="page"></div>
+
+    <!-- HEALTH -->
+    <div id="page-health" class="page"></div>
+
+    <!-- CROPS -->
+    <div id="page-crops" class="page"></div>
+
+    <!-- CROP VIEW -->
+    <div id="page-crop-view" class="page"></div>
+
+    <!-- CROP ADD -->
+    <div id="page-crop-add" class="page"></div>
+
+    <!-- EXECUTIVE -->
+    <div id="page-executive" class="page"></div>
+
+    <!-- TRANSACTIONS -->
+    <div id="page-transactions" class="page"></div>
+
+    <!-- PRICING -->
+    <div id="page-pricing" class="page"></div>
+
+    <!-- SETTINGS -->
+    <div id="page-settings" class="page"></div>
+
+  </div><!-- /content -->
+</div><!-- /app -->
+
+<!-- ============================================================ JAVASCRIPT -->
+<script>
+// ──────────────────────────────────────────────
+// DATA LAYER
+// ──────────────────────────────────────────────
+const DB = {
+  get(k){try{return JSON.parse(localStorage.getItem('sf3_'+k))||[];}catch{return[];}},
+  getObj(k,d={}){try{return JSON.parse(localStorage.getItem('sf3_'+k))||d;}catch{return d;}},
+  set(k,v){localStorage.setItem('sf3_'+k,JSON.stringify(v));},
+  nextId(k){const a=this.get(k);return a.length?Math.max(...a.map(i=>i.id))+1:1;},
+
+  login(email,pwd){
+    const u=this.get('users').find(u=>u.email===email);
+    if(!u)return{ok:false,msg:'Email not found.'};
+    if(u.pwd!==btoa(pwd))return{ok:false,msg:'Wrong password.'};
+    this.set('session',{id:u.id,name:u.name,email:u.email,role:u.role,farm:u.farm||'My Farm'});
+    return{ok:true};
+  },
+  logout(){localStorage.removeItem('sf3_session');},
+  session(){return this.getObj('session',null)||null;},
+  register(name,email,pwd,farm){
+    const users=this.get('users');
+    if(users.find(u=>u.email===email))return{ok:false,msg:'Email already registered.'};
+    users.push({id:this.nextId('users'),name,email,pwd:btoa(pwd),role:'farmer',farm,createdAt:Date.now()});
+    this.set('users',users);return{ok:true};
+  },
+
+  animals(){const s=this.session();if(!s)return[];return this.get('animals').filter(a=>a.uid===s.id);},
+  animal(id){return this.get('animals').find(a=>a.id===+id);},
+  saveAnimal(d){
+    const s=this.session();if(!s)return;
+    const list=this.get('animals');
+    if(d.id){const i=list.findIndex(a=>a.id===d.id);if(i>-1)list[i]={...list[i],...d};}
+    else{d.id=this.nextId('animals');d.uid=s.id;d.createdAt=Date.now();list.push(d);}
+    this.set('animals',list);return d.id;
+  },
+
+  logs(aid){return this.get('logs').filter(l=>l.aid===+aid);},
+  addLog(l){const list=this.get('logs');l.id=this.nextId('logs');l.ts=Date.now();list.push(l);this.set('logs',list);
+    if(l.weight){const a=this.animal(l.aid);if(a){a.weight=l.weight;this.saveAnimal(a);}}
+  },
+
+  hrecs(aid){return this.get('hrecs').filter(h=>h.aid===+aid);},
+  addHrec(h){const list=this.get('hrecs');h.id=this.nextId('hrecs');h.ts=Date.now();list.push(h);this.set('hrecs',list);},
+  upcomingHealth(){
+    const s=this.session();if(!s)return[];
+    const ids=this.animals().map(a=>a.id);
+    const today=new Date();today.setHours(0,0,0,0);
+    return this.get('hrecs').filter(h=>ids.includes(h.aid)&&h.nextDue&&new Date(h.nextDue)>=today)
+      .sort((a,b)=>new Date(a.nextDue)-new Date(b.nextDue)).slice(0,6);
+  },
+
+  plots(){const s=this.session();if(!s)return[];return this.get('plots').filter(p=>p.uid===s.id);},
+  plot(id){return this.get('plots').find(p=>p.id===+id);},
+  savePlot(d){
+    const s=this.session();if(!s)return;
+    const list=this.get('plots');
+    if(d.id){const i=list.findIndex(p=>p.id===d.id);if(i>-1)list[i]={...list[i],...d};}
+    else{d.id=this.nextId('plots');d.uid=s.id;d.createdAt=Date.now();list.push(d);}
+    this.set('plots',list);return d.id;
+  },
+
+  inputs(pid){return this.get('inputs').filter(i=>i.pid===+pid);},
+  addInput(inp){
+    const list=this.get('inputs');inp.id=this.nextId('inputs');inp.ts=Date.now();list.push(inp);this.set('inputs',list);
+    if(inp.cost>0)this.addTrans({type:'expense',cat:'Crop Input',amount:inp.cost,desc:inp.name,date:inp.date});
+  },
+
+  harvests(pid){return this.get('harvests').filter(h=>h.pid===+pid);},
+  addHarvest(h){
+    const list=this.get('harvests');h.id=this.nextId('harvests');h.total=(h.qty||0)*(h.price||0);h.ts=Date.now();list.push(h);this.set('harvests',list);
+    if(h.total>0)this.addTrans({type:'income',cat:'Harvest Sale',amount:h.total,desc:'Harvest sale',date:h.date});
+  },
+
+  trans(){const s=this.session();if(!s)return[];return this.get('trans').filter(t=>t.uid===s.id);},
+  addTrans(d){
+    const s=this.session();if(!s)return;
+    const list=this.get('trans');d.id=this.nextId('trans');d.uid=s.id;d.ts=Date.now();list.push(d);this.set('trans',list);
+  },
+
+  seed(){
+    if(this.get('users').length)return;
+    this.set('users',[{id:1,name:'Farm Admin',email:'admin@smartfarm.com',pwd:btoa('password'),role:'admin',farm:'SmartFarm Nigeria'}]);
+    this.set('animals',[
+      {id:1,uid:1,tagId:'COW-001',name:'Bessie',type:'cow',breed:'Friesian',gender:'female',dob:'2021-03-15',weight:480,color:'Black & White',source:'Purchased',buyPrice:150000,value:220000,status:'sick',repro:'Lactating',notes:'High fever — vet dispatched',active:true},
+      {id:2,uid:1,tagId:'COW-002',name:'Daisy',type:'cow',breed:'Friesian',gender:'female',dob:'2019-06-20',weight:510,color:'Brown',source:'Purchased',buyPrice:180000,value:260000,status:'healthy',repro:'Lactating',notes:'',active:true},
+      {id:3,uid:1,tagId:'COW-003',name:'Rose',type:'cow',breed:'Hereford',gender:'female',dob:'2022-09-01',weight:310,color:'Red & White',source:'Born here',buyPrice:0,value:140000,status:'healthy',repro:'Pregnant',notes:'Due in ~22 days',active:true},
+      {id:4,uid:1,tagId:'PIG-001',name:'Grunt',type:'pig',breed:'Duroc',gender:'male',dob:'2023-11-01',weight:58,color:'Red-Brown',source:'Purchased',buyPrice:25000,value:30000,status:'recovering',repro:'None',notes:'17kg below target',active:true},
+      {id:5,uid:1,tagId:'PKT-001',name:'Pen A',type:'poultry',breed:'Broiler',gender:'female',dob:'2024-09-01',weight:1.9,color:'White',source:'Purchased',buyPrice:90000,value:150000,status:'healthy',repro:'Laying',notes:'30 birds',active:true},
+      {id:6,uid:1,tagId:'PIG-002',name:'Mama',type:'pig',breed:'Large White',gender:'female',dob:'2022-05-10',weight:160,color:'Pink',source:'Purchased',buyPrice:60000,value:80000,status:'healthy',repro:'Nursing',notes:'8 piglets — all well',active:true},
+    ]);
+    this.set('logs',[
+      {id:1,aid:1,date:'2024-12-01',weight:478,milk:0,feed:12,temp:39.8,notes:'Fever detected',ts:Date.now()},
+      {id:2,aid:2,date:'2024-12-01',weight:511,milk:18.5,feed:12,temp:38.4,notes:'Normal',ts:Date.now()},
+      {id:3,aid:2,date:'2024-12-02',weight:511,milk:19,feed:12,temp:38.3,notes:'',ts:Date.now()},
+    ]);
+    this.set('hrecs',[
+      {id:1,aid:1,type:'treatment',name:'Antipyretic',vet:'Dr. Emeka',dateGiven:'2024-12-01',nextDue:'2025-05-01',cost:8500,notes:'Fever 39.8°C',ts:Date.now()},
+      {id:2,aid:2,type:'vaccination',name:'FMD Booster',vet:'Dr. Emeka',dateGiven:'2024-11-01',nextDue:'2025-05-01',cost:5000,notes:'',ts:Date.now()},
+      {id:3,aid:5,type:'vaccination',name:'Newcastle Disease',vet:'Farm Staff',dateGiven:'2024-11-15',nextDue:'2025-04-15',cost:3500,notes:'',ts:Date.now()},
+    ]);
+    this.set('plots',[
+      {id:1,uid:1,name:'North Field A',ha:3.5,crop:'Maize',planted:'2024-10-01',harvest:'2025-01-15',status:'growing',soil:'Loamy',water:'Rain-fed',notes:''},
+      {id:2,uid:1,name:'South Plot B',ha:2.0,crop:'Cassava',planted:'2024-08-15',harvest:'2025-08-15',status:'growing',soil:'Sandy loam',water:'Drip',notes:''},
+    ]);
+    this.set('inputs',[
+      {id:1,pid:1,inputType:'fertilizer',name:'NPK 15-15-15',qty:50,unit:'kg',cost:35000,date:'2024-10-15',notes:''},
+      {id:2,pid:1,inputType:'pesticide',name:'Cypermethrin',qty:2,unit:'L',cost:8000,date:'2024-11-01',notes:''},
+      {id:3,pid:2,inputType:'fertilizer',name:'Urea',qty:30,unit:'kg',cost:22000,date:'2024-09-01',notes:''},
+    ]);
+    this.set('harvests',[
+      {id:1,pid:2,qty:800,price:120,total:96000,date:'2024-11-20',buyer:'Market A',notes:'First batch'},
+    ]);
+    this.set('trans',[
+      {id:1,uid:1,type:'income',cat:'Milk Sale',amount:45000,desc:'Weekly milk sales',date:'2024-12-01'},
+      {id:2,uid:1,type:'expense',cat:'Feed',amount:28000,desc:'Cattle hay purchase',date:'2024-12-01'},
+      {id:3,uid:1,type:'income',cat:'Egg Sale',amount:18000,desc:'Poultry egg sales',date:'2024-11-28'},
+      {id:4,uid:1,type:'expense',cat:'Veterinary',amount:8500,desc:'Vet visit + meds',date:'2024-11-25'},
+      {id:5,uid:1,type:'income',cat:'Harvest Sale',amount:96000,desc:'Cassava harvest',date:'2024-11-20'},
+      {id:6,uid:1,type:'expense',cat:'Crop Input',amount:65000,desc:'Fertilizer & pesticide',date:'2024-10-15'},
+    ]);
+  }
+};
+
+// ──────────────────────────────────────────────
+// HELPERS
+// ──────────────────────────────────────────────
+const cur=(n)=>'₦'+Number(n||0).toLocaleString('en-NG',{minimumFractionDigits:2});
+const fdate=(d)=>d?new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'—';
+const fdateS=(d)=>d?new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'—';
+const aicon=(t)=>({cow:'🐄',goat:'🐐',poultry:'🐔',sheep:'🐑',pig:'🐷',other:'🐾'}[t]||'🐾');
+const prog=(s,e)=>{if(!s||!e)return 0;const ss=new Date(s),ee=new Date(e),n=new Date();if(n>=ee)return 100;if(n<=ss)return 0;return Math.round((n-ss)/(ee-ss)*100);};
+const daysUntil=(d)=>{const dd=new Date(d);dd.setHours(0,0,0,0);const t=new Date();t.setHours(0,0,0,0);return Math.round((dd-t)/86400000);};
+const age=(dob)=>{if(!dob)return'—';const d=new Date(dob),n=new Date();const y=n.getFullYear()-d.getFullYear(),m=n.getMonth()-d.getMonth();return y>0?y+'yr '+(m<0?m+12:m)+'mo':Math.abs(m)+' months';};
+const chip=(s)=>{const m={healthy:'ok',sick:'bad',recovering:'warn',deceased:'bad'};return`<span class="chip ${m[s]||'gray'}">${s}</span>`;};
+const chipC=(s,l)=>`<span class="chip ${s}">${l}</span>`;
+
+function toast(msg,type='success'){
+  const c={success:'#2d7a3a',error:'#a83030',warning:'#b87418'}[type]||'#1a60a8';
+  const el=document.createElement('div');
+  el.style.cssText=`position:fixed;bottom:20px;right:20px;background:${c};color:#fff;padding:11px 18px;border-radius:10px;font-size:12px;font-weight:700;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.2);font-family:var(--font)`;
+  el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),3000);
+}
+
+// ──────────────────────────────────────────────
+// ROUTING
+// ──────────────────────────────────────────────
+let currentPage='dashboard';
+let animalViewId=null;
+let cropViewId=null;
+
+function go(page,id=null){
+  closeSidebar();
+  // hide all pages
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(n=>n.classList.remove('active'));
+
+  currentPage=page;
+  if(id!==null){
+    if(page==='animal-view')animalViewId=id;
+    if(page==='crop-view')cropViewId=id;
+  }
+
+  const navId='nav-'+page.split('-')[0];
+  const navEl=document.getElementById(navId);
+  if(navEl)navEl.classList.add('active');
+
+  const pageEl=document.getElementById('page-'+page);
+  if(pageEl){
+    pageEl.classList.add('active');
+    renderPage(page);
+  }
+}
+
+function renderPage(page){
+  const el=document.getElementById('page-'+page);
+  if(!el)return;
+  const renders={
+    dashboard:renderDashboard,
+    livestock:renderLivestock,
+    'animal-view':()=>renderAnimalView(animalViewId),
+    'animal-add':renderAnimalAdd,
+    'animal-edit':()=>renderAnimalEdit(animalViewId),
+    health:renderHealth,
+    crops:renderCrops,
+    'crop-view':()=>renderCropView(cropViewId),
+    'crop-add':renderCropAdd,
+    executive:renderExecutive,
+    transactions:renderTransactions,
+    pricing:renderPricing,
+    settings:renderSettings,
+  };
+  if(renders[page])renders[page]();
+}
+
+// ──────────────────────────────────────────────
+// DASHBOARD
+// ──────────────────────────────────────────────
+function renderDashboard(){
+  const animals=DB.animals().filter(a=>a.active!==false);
+  const plots=DB.plots();
+  const trans=DB.trans();
+  const healthDue=DB.upcomingHealth();
+  const income=trans.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const expense=trans.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const net=income-expense;
+  const lVal=animals.reduce((s,a)=>s+(+a.value||0),0);
+  const sick=animals.filter(a=>a.status==='sick').length;
+  const healthy=animals.filter(a=>a.status==='healthy').length;
+
+  // Monthly chart
+  const mL=[],mI=[],mE=[];
+  for(let i=5;i>=0;i--){
+    const d=new Date();d.setMonth(d.getMonth()-i);
+    const ym=d.toISOString().slice(0,7);
+    mL.push(d.toLocaleString('default',{month:'short'}));
+    mI.push(trans.filter(t=>t.type==='income'&&t.date?.startsWith(ym)).reduce((s,t)=>s+t.amount,0));
+    mE.push(trans.filter(t=>t.type==='expense'&&t.date?.startsWith(ym)).reduce((s,t)=>s+t.amount,0));
+  }
+
+  const el=document.getElementById('page-dashboard');
+  el.innerHTML=`
+  ${sick>0?`<div class="alert-bar"><span style="font-size:16px">🚨</span><span><strong>${sick} animal${sick>1?'s':''} need attention.</strong> Check health monitor. <span class="alert-link" onclick="go('health')">View health →</span></span></div>`:''}
+
+  <div class="kpis">
+    <div class="kpi" style="--ka:var(--amber)"><div class="kpi-lbl">Total Animals</div><div class="kpi-val">${animals.length}</div><div class="kpi-d dn">${animals.filter(a=>a.type==='cow').length} cattle · ${animals.filter(a=>a.type==='pig').length} pigs</div></div>
+    <div class="kpi" style="--ka:var(--green)"><div class="kpi-lbl">Herd Health Rate</div><div class="kpi-val g">${animals.length?Math.round(healthy/animals.length*100):0}%</div><div class="kpi-d du">${healthy} healthy · ${sick} sick</div></div>
+    <div class="kpi" style="--ka:${sick>0?'var(--red)':'var(--green)'}"><div class="kpi-lbl">Active Alerts</div><div class="kpi-val ${sick>0?'r':'g'}">${sick}</div><div class="kpi-d ${sick>0?'dd':'du'}">${sick>0?sick+' need care':'All clear'}</div></div>
+    <div class="kpi" style="--ka:${net>=0?'var(--green)':'var(--red)'}"><div class="kpi-lbl">Net Profit</div><div class="kpi-val ${net>=0?'g':'r'}">${cur(net)}</div><div class="kpi-d ${net>=0?'du':'dd'}">Income − Expenses</div></div>
+    <div class="kpi" style="--ka:var(--blue)"><div class="kpi-lbl">Livestock Value</div><div class="kpi-val">${cur(lVal)}</div><div class="kpi-d dn">Current market value</div></div>
+  </div>
+
+  <div class="g2">
+    <div>
+      <div class="panel">
+        <div class="ph"><span class="ph-t">Herd Overview</span><div class="ph-acts"><span class="ph-m">${animals.length} animals</span><button class="btn sm" onclick="go('livestock')">View all</button><button class="btn sm p" onclick="go('animal-add')">+ Add</button></div></div>
+        <div style="overflow-x:auto"><table class="tbl">
+          <thead><tr><th></th><th>ID / Name</th><th>Type</th><th>Weight</th><th>Breed</th><th>Status</th></tr></thead>
+          <tbody>${animals.slice(0,6).map(a=>`<tr onclick="go('animal-view',${a.id})">
+            <td><div class="a-ico">${aicon(a.type)}</div></td>
+            <td><strong>${a.tagId}</strong> ${a.name||''}</td>
+            <td style="text-transform:capitalize">${a.type}</td>
+            <td class="mono">${a.weight?a.weight+' kg':'—'}</td>
+            <td>${a.breed||'—'}</td>
+            <td>${chip(a.status)}</td>
+          </tr>`).join('')||'<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text3)">No animals — <span style="color:var(--green-t);cursor:pointer" onclick="go(\'animal-add\')">add your first</span></td></tr>'}</tbody>
+        </table></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="ph-t">Financial Overview — 6 Months</span><span class="ph-m">Income vs Expenses</span></div>
+        <div style="padding:14px 16px 10px"><canvas id="fin-chart" height="160"></canvas></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel">
+        <div class="ph"><span class="ph-t">Weather</span><span class="ph-m">Nigeria · Today</span></div>
+        <div class="wx-row">
+          <div class="wx-col"><div class="wx-t">NOW</div><div class="wx-i">☀️</div><div class="wx-v">27°C</div><div class="wx-r">0%</div></div>
+          <div class="wx-col"><div class="wx-t">15:00</div><div class="wx-i">⛅</div><div class="wx-v">28°C</div><div class="wx-r">5%</div></div>
+          <div class="wx-col"><div class="wx-t">18:00</div><div class="wx-i">🌧️</div><div class="wx-v">25°C</div><div class="wx-r">80%</div></div>
+          <div class="wx-col"><div class="wx-t">TMRW</div><div class="wx-i">☀️</div><div class="wx-v">29°C</div><div class="wx-r">10%</div></div>
+        </div>
+        <div class="wx-warn">🌡 Heat stress risk after 14:00 — keep cattle shaded & hydrated</div>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="ph-t">Feed Inventory</span><span class="ph-m">All barns</span></div>
+        ${[['Cattle Hay',72,'var(--green)'],['Pig Pellets',45,'var(--amber)'],['Poultry Mix',18,'var(--red)'],['Mineral Lick',60,'var(--blue)'],['Silage',84,'var(--green)']].map(([n,p,c])=>`
+        <div class="feed-item"><span class="feed-name">${n}</span>
+          <div class="feed-track"><div class="feed-fill" style="width:${p}%;background:${c}"></div></div>
+          <span class="feed-pct" style="${p<25?'color:var(--red)':p<50?'color:var(--amber)':''}">${p}%</span>
+          <button class="feed-btn ${p<25?'urg':''}">${p<25?'Urgent':'Order'}</button>
+        </div>`).join('')}
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="ph-t">🔔 Upcoming Health Duties</span><button class="btn sm" onclick="go('health')">All →</button></div>
+        ${healthDue.length?healthDue.map(h=>{
+          const a=DB.animal(h.aid);const days=daysUntil(h.nextDue);
+          return`<div class="log-row"><div class="log-dot" style="background:${days<=3?'var(--red)':'var(--amber)'}"></div>
+            <div><div class="log-msg"><strong>${h.name||h.type}</strong> — ${a?.name||'Animal '+h.aid}</div>
+            <div class="log-time">Due ${fdate(h.nextDue)} · ${days===0?'Today!':days+' days'}</div></div>
+          </div>`;
+        }).join(''):`<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">No upcoming duties</div>`}
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="ph-t">Activity Log</span><span class="ph-m">Today</span></div>
+        ${sick>0?`<div class="log-row"><div class="log-dot" style="background:var(--red)"></div><div><div class="log-msg">${sick} animal health alert — vet notified</div><div class="log-time">09:14 today</div></div></div>`:''}
+        <div class="log-row"><div class="log-dot" style="background:var(--amber)"></div><div><div class="log-msg">Morning feed complete — all barns dispensed</div><div class="log-time">08:30 today</div></div></div>
+        <div class="log-row"><div class="log-dot" style="background:var(--green)"></div><div><div class="log-msg">Daily sensor check — all systems online</div><div class="log-time">07:00 today</div></div></div>
+        <div class="log-row"><div class="log-dot" style="background:var(--blue)"></div><div><div class="log-msg">Farm report generated</div><div class="log-time">06:00 today</div></div></div>
+      </div>
+    </div>
+  </div>`;
+
+  setTimeout(()=>{
+    const ctx=document.getElementById('fin-chart');
+    if(ctx&&!ctx._chartInst){
+      ctx._chartInst=new Chart(ctx.getContext('2d'),{type:'bar',
+        data:{labels:mL,datasets:[
+          {label:'Income',data:mI,backgroundColor:'rgba(45,122,58,.75)',borderRadius:5,borderSkipped:false},
+          {label:'Expense',data:mE,backgroundColor:'rgba(168,48,48,.6)',borderRadius:5,borderSkipped:false}
+        ]},
+        options:{responsive:true,plugins:{legend:{position:'top',labels:{font:{family:'IBM Plex Mono',size:10}}}},
+          scales:{y:{beginAtZero:true,ticks:{callback:v=>'₦'+v.toLocaleString(),font:{family:'IBM Plex Mono',size:10}}},x:{grid:{display:false},ticks:{font:{family:'IBM Plex Mono',size:10}}}}}
+      });
+    }
+  },50);
+}
+
+// ──────────────────────────────────────────────
+// LIVESTOCK LIST
+// ──────────────────────────────────────────────
+function renderLivestock(){
+  const all=DB.animals().filter(a=>a.active!==false);
+  const el=document.getElementById('page-livestock');
+  const search=(el._search||'').toLowerCase();
+  const typeF=el._typeF||'';
+  const healthF=el._healthF||'';
+  let animals=all.slice();
+  if(typeF)animals=animals.filter(a=>a.type===typeF);
+  if(healthF)animals=animals.filter(a=>a.status===healthF);
+  if(search)animals=animals.filter(a=>(a.name||'').toLowerCase().includes(search)||(a.tagId||'').toLowerCase().includes(search)||(a.breed||'').toLowerCase().includes(search));
+
+  const totalVal=all.reduce((s,a)=>s+(+a.value||0),0);
+  const sick=all.filter(a=>a.status==='sick').length;
+
+  el.innerHTML=`
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+    <div><h2 style="font-size:18px;font-weight:800">Herd Management</h2>
+    <p class="t-dim" style="font-size:12px;margin-top:2px">${all.length} animals · ${cur(totalVal)} total value</p></div>
+    <button class="btn p" onclick="go('animal-add')">+ Register Animal</button>
+  </div>
+  <div class="kpis k4" style="margin-bottom:14px">
+    <div class="kpi" style="--ka:var(--amber)"><div class="kpi-lbl">Cattle</div><div class="kpi-val">${all.filter(a=>a.type==='cow').length}</div></div>
+    <div class="kpi" style="--ka:var(--green)"><div class="kpi-lbl">Pigs</div><div class="kpi-val">${all.filter(a=>a.type==='pig').length}</div></div>
+    <div class="kpi" style="--ka:var(--blue)"><div class="kpi-lbl">Poultry</div><div class="kpi-val">${all.filter(a=>a.type==='poultry').length}</div></div>
+    <div class="kpi" style="--ka:${sick>0?'var(--red)':'var(--green)'}"><div class="kpi-lbl">Under Care</div><div class="kpi-val ${sick>0?'r':'g'}">${sick}</div><div class="kpi-d ${sick>0?'dd':'du'}">${sick>0?'Need attention':'All healthy'}</div></div>
+  </div>
+  <div class="panel" style="margin-bottom:14px">
+    <div style="padding:12px 16px;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <div style="flex:1;min-width:160px"><label class="fl">Search</label>
+        <input type="text" class="fi" placeholder="Tag, name, breed…" value="${el._search||''}" oninput="document.getElementById('page-livestock')._search=this.value;renderLivestock()"></div>
+      <div style="width:130px"><label class="fl">Type</label>
+        <select class="fs" onchange="document.getElementById('page-livestock')._typeF=this.value;renderLivestock()">
+          <option value="">All Types</option>
+          ${['cow','goat','poultry','sheep','pig','other'].map(t=>`<option value="${t}" ${typeF===t?'selected':''}>${aicon(t)} ${t}</option>`).join('')}
+        </select>
+      </div>
+      <div style="width:130px"><label class="fl">Health</label>
+        <select class="fs" onchange="document.getElementById('page-livestock')._healthF=this.value;renderLivestock()">
+          <option value="">All Status</option>
+          <option value="healthy" ${healthF==='healthy'?'selected':''}>✅ Healthy</option>
+          <option value="sick" ${healthF==='sick'?'selected':''}>🚨 Sick</option>
+          <option value="recovering" ${healthF==='recovering'?'selected':''}>💊 Recovering</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="ph"><span class="ph-t">Animal Register</span><span class="ph-m">${animals.length} result${animals.length!==1?'s':''}</span></div>
+    ${!animals.length?`<div class="empty"><div class="empty-i">🐄</div><h3>No Animals Found</h3><p>Clear filters or add your first animal.</p><button class="btn p" onclick="go('animal-add')">+ Register Animal</button></div>`:`
+    <div style="overflow-x:auto"><table class="tbl">
+      <thead><tr><th></th><th>Tag ID</th><th>Name</th><th>Type</th><th>Breed</th><th>Gender</th><th>Weight</th><th>Value</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody>${animals.map(a=>`<tr>
+        <td><div class="a-ico">${aicon(a.type)}</div></td>
+        <td class="mono"><strong>${a.tagId}</strong></td>
+        <td>${a.name||'—'}</td>
+        <td style="text-transform:capitalize">${a.type}</td>
+        <td>${a.breed||'—'}</td>
+        <td>${a.gender==='female'?'♀ F':'♂ M'}</td>
+        <td class="mono">${a.weight?a.weight+' kg':'—'}</td>
+        <td class="mono">${a.value?cur(a.value):'—'}</td>
+        <td>${chip(a.status)}</td>
+        <td><div style="display:flex;gap:5px">
+          <button class="btn sm p" onclick="go('animal-view',${a.id})">View</button>
+          <button class="btn sm" onclick="animalViewId=${a.id};go('animal-edit')">Edit</button>
+        </div></td>
+      </tr>`).join('')}</tbody>
+    </table></div>`}
+  </div>`;
+}
+
+// ──────────────────────────────────────────────
+// ANIMAL VIEW
+// ──────────────────────────────────────────────
+function renderAnimalView(id){
+  const a=DB.animal(id);
+  if(!a){go('livestock');return;}
+  const el=document.getElementById('page-animal-view');
+  const logs=DB.logs(id).sort((a,b)=>b.ts-a.ts);
+  const hrecs=DB.hrecs(id).sort((a,b)=>b.ts-a.ts);
+  const wData=logs.filter(l=>l.weight>0).slice().reverse();
+  const tab=el._tab||'logs';
+  const qr=`https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=${encodeURIComponent(location.href+'#animal='+id)}`;
+
+  el.innerHTML=`
+  <div class="bc"><a onclick="go('livestock')">Herd</a> › <span>${a.name||a.tagId}</span></div>
+  <div class="g2b" style="margin-bottom:14px">
+    <div style="display:grid;grid-template-columns:190px 1fr;gap:14px">
+      <div class="panel" style="text-align:center;padding:20px">
+        <div style="font-size:50px;margin-bottom:6px">${aicon(a.type)}</div>
+        <div style="font-size:16px;font-weight:800">${a.name||'Unnamed'}</div>
+        <div class="mono t-dim" style="font-size:11px;margin-top:2px">${a.tagId}</div>
+        <div style="margin:10px 0">${chip(a.status)}</div>
+        <img src="${qr}" alt="QR" style="width:86px;height:86px;border-radius:8px;border:1px solid var(--bdr);margin:6px auto;display:block">
+        <div style="font-size:10px;color:var(--text3)">Scan to view</div>
+        <div style="margin-top:12px">
+          <label class="fl" style="text-align:left;display:block;margin-bottom:5px">Update Health</label>
+          <select class="fs" style="font-size:11px;padding:6px 10px" onchange="updateAnimalHealth(${id},this.value)">
+            ${['healthy','sick','recovering','deceased'].map(s=>`<option value="${s}" ${a.status===s?'selected':''}>${s}</option>`).join('')}
+          </select>
+        </div>
+        <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
+          <button class="btn sm" style="width:100%" onclick="animalViewId=${id};go('animal-edit')">✏ Edit Animal</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="ph-t">Animal Details</span></div>
+        <div class="dg">
+          ${[['Type',a.type],['Breed',a.breed||'—'],['Gender',a.gender],['Age',age(a.dob)],
+             ['Weight',a.weight?a.weight+'kg':'—'],['Color',a.color||'—'],
+             ['Source',a.source||'—'],['Purchase',cur(a.buyPrice)],
+             ['Value',cur(a.value)],['Reproductive',a.repro||'—']
+            ].map(([l,v])=>`<div class="d-item"><div class="d-lbl">${l}</div><div class="d-val">${v}</div></div>`).join('')}
+        </div>
+        ${a.notes?`<div style="margin:0 14px 14px;padding:10px 12px;background:var(--blue-l);border-radius:var(--r);font-size:12px;color:var(--text2);border:1px solid var(--blue-m)">📝 ${a.notes}</div>`:''}
+      </div>
+    </div>
+    <div>
+      ${wData.length>1?`<div class="panel" style="margin-bottom:14px">
+        <div class="ph"><span class="ph-t">⚖ Weight Trend</span><span class="ph-m">${wData.length} data points</span></div>
+        <div style="padding:14px"><canvas id="w-chart" height="130"></canvas></div>
+      </div>`:''}
+      <div class="panel">
+        <div class="ph"><span class="ph-t">Quick Stats</span></div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr)">
+          ${[['Daily Logs',logs.length,'📋'],['Health Recs',hrecs.length,'💉'],['Milk/Eggs',logs.filter(l=>l.milk>0||l.eggs>0).length,'🥛']].map(([l,v,i])=>
+            `<div style="text-align:center;padding:14px;border-right:1px solid var(--bdr)">
+              <div style="font-size:20px">${i}</div>
+              <div style="font-size:18px;font-weight:800;margin-top:4px">${v}</div>
+              <div class="mono t-dim" style="font-size:10px">${l}</div>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="tab-bar">
+      ${[['logs','📋 Daily Logs'],['hrecs','💉 Health Records'],['add-log','➕ Add Log'],['add-hrec','🏥 Add Health']].map(([k,l])=>
+        `<button class="tab-btn ${tab===k?'on':''}" onclick="document.getElementById('page-animal-view')._tab='${k}';renderAnimalView(${id})">${l}</button>`
+      ).join('')}
+    </div>
+
+    <div class="tab-pane ${tab==='logs'?'on':''}" style="${tab==='logs'?'display:block':''}">
+      ${!logs.length?`<div class="empty" style="padding:30px"><div class="empty-i">📋</div><h3>No Logs Yet</h3><p>Click "Add Log" to start tracking.</p></div>`:`
+      <div style="overflow-x:auto"><table class="tbl">
+        <thead><tr><th>Date</th><th>Weight</th>${['cow','goat'].includes(a.type)?'<th>Milk (L)</th>':''}${a.type==='poultry'?'<th>Eggs</th>':''}<th>Feed kg</th><th>Temp</th><th>Notes</th></tr></thead>
+        <tbody>${logs.map(l=>`<tr>
+          <td class="mono">${fdate(l.date)}</td>
+          <td><strong>${l.weight?l.weight+' kg':'—'}</strong></td>
+          ${['cow','goat'].includes(a.type)?`<td style="color:var(--blue)">${l.milk>0?l.milk+'L':'—'}</td>`:''}
+          ${a.type==='poultry'?`<td style="color:var(--amber)">${l.eggs>0?l.eggs:'—'}</td>`:''}
+          <td>${l.feed>0?l.feed:'—'}</td>
+          <td class="mono ${l.temp>39.5?'t-bad':''}">${l.temp>0?l.temp+'°C':'—'}</td>
+          <td class="t-dim" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.notes||'—'}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>`}
+    </div>
+
+    <div class="tab-pane ${tab==='hrecs'?'on':''}" style="${tab==='hrecs'?'display:block':''}">
+      ${!hrecs.length?`<div class="empty" style="padding:30px"><div class="empty-i">💉</div><h3>No Health Records</h3></div>`:`
+      <table class="tbl"><thead><tr><th>Type</th><th>Vaccine/Meds</th><th>Date Given</th><th>Next Due</th><th>Vet</th><th>Cost</th></tr></thead>
+      <tbody>${hrecs.map(h=>`<tr>
+        <td>${chipC('blue',h.type)}</td>
+        <td><strong>${h.name||'—'}</strong></td>
+        <td class="mono">${fdate(h.dateGiven)}</td>
+        <td class="mono ${h.nextDue&&daysUntil(h.nextDue)<=7?'t-warn':''}">${h.nextDue?fdate(h.nextDue):'—'}</td>
+        <td>${h.vet||'—'}</td>
+        <td class="mono">${h.cost?cur(h.cost):'—'}</td>
+      </tr>`).join('')}</tbody></table>`}
+    </div>
+
+    <div class="tab-pane ${tab==='add-log'?'on':''}" style="${tab==='add-log'?'display:block':'display:none'}">
+      <div style="padding:20px;max-width:500px">
+        <div class="fgrid">
+          <div class="fg"><label class="fl">Date</label><input type="date" id="ld-d" class="fi" value="${new Date().toISOString().slice(0,10)}"></div>
+          <div class="fg"><label class="fl">Weight (kg)</label><input type="number" id="ld-w" class="fi" step="0.01" placeholder="0.00"></div>
+          ${['cow','goat'].includes(a.type)?'<div class="fg"><label class="fl">Milk Yield (L)</label><input type="number" id="ld-m" class="fi" step="0.01" placeholder="0.00"></div>':''}
+          ${a.type==='poultry'?'<div class="fg"><label class="fl">Egg Count</label><input type="number" id="ld-e" class="fi" placeholder="0"></div>':''}
+          <div class="fg"><label class="fl">Feed (kg)</label><input type="number" id="ld-f" class="fi" step="0.01" placeholder="0.00"></div>
+          <div class="fg"><label class="fl">Temperature (°C)</label><input type="number" id="ld-t" class="fi" step="0.1" placeholder="38.5"></div>
+          <div class="fg f2"><label class="fl">Notes</label><textarea id="ld-n" class="ft" placeholder="Observations…"></textarea></div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:4px">
+          <button class="btn p" onclick="saveLog(${id})">💾 Save Log</button>
+          <button class="btn" onclick="document.getElementById('page-animal-view')._tab='logs';renderAnimalView(${id})">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane ${tab==='add-hrec'?'on':''}" style="${tab==='add-hrec'?'display:block':'display:none'}">
+      <div style="padding:20px;max-width:500px">
+        <div class="fgrid">
+          <div class="fg"><label class="fl">Record Type</label>
+            <select id="hr-t" class="fs"><option value="vaccination">💉 Vaccination</option><option value="treatment">💊 Treatment</option><option value="checkup">🩺 Checkup</option><option value="deworming">🪱 Deworming</option></select>
+          </div>
+          <div class="fg"><label class="fl">Vaccine / Medicine</label><input type="text" id="hr-n" class="fi" placeholder="e.g. FMD Vaccine"></div>
+          <div class="fg"><label class="fl">Date Given</label><input type="date" id="hr-d" class="fi" value="${new Date().toISOString().slice(0,10)}"></div>
+          <div class="fg"><label class="fl">Next Due Date</label><input type="date" id="hr-nd" class="fi"></div>
+          <div class="fg"><label class="fl">Vet Name</label><input type="text" id="hr-v" class="fi" placeholder="Dr. Emeka"></div>
+          <div class="fg"><label class="fl">Cost (₦)</label><input type="number" id="hr-c" class="fi" value="0" step="0.01"></div>
+          <div class="fg f2"><label class="fl">Notes</label><textarea id="hr-notes" class="ft"></textarea></div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:4px">
+          <button class="btn p" onclick="saveHrec(${id})">💾 Save Record</button>
+          <button class="btn" onclick="document.getElementById('page-animal-view')._tab='hrecs';renderAnimalView(${id})">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  if(wData.length>1){
+    setTimeout(()=>{
+      const ctx=document.getElementById('w-chart');
+      if(ctx&&!ctx._c){ctx._c=new Chart(ctx.getContext('2d'),{type:'line',
+        data:{labels:wData.map(l=>fdateS(l.date)),datasets:[{label:'Weight kg',data:wData.map(l=>l.weight),borderColor:'var(--green)',backgroundColor:'rgba(45,122,58,.08)',borderWidth:2,fill:true,tension:.4,pointRadius:4}]},
+        options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:false,ticks:{font:{family:'IBM Plex Mono',size:10}}},x:{grid:{display:false},ticks:{font:{family:'IBM Plex Mono',size:10}}}}}
+      });}
+    },50);
+  }
+}
+
+function updateAnimalHealth(id,val){const a=DB.animal(id);if(a){a.status=val;DB.saveAnimal(a);toast('Status updated!');renderAnimalView(id);updateBadges();}}
+function saveLog(id){
+  DB.addLog({aid:id,date:document.getElementById('ld-d').value,weight:+document.getElementById('ld-w')?.value||0,milk:+document.getElementById('ld-m')?.value||0,eggs:+document.getElementById('ld-e')?.value||0,feed:+document.getElementById('ld-f')?.value||0,temp:+document.getElementById('ld-t')?.value||0,notes:document.getElementById('ld-n')?.value.trim()||''});
+  toast('Log saved!');document.getElementById('page-animal-view')._tab='logs';renderAnimalView(id);
+}
+function saveHrec(id){
+  DB.addHrec({aid:id,type:document.getElementById('hr-t').value,name:document.getElementById('hr-n').value.trim(),vet:document.getElementById('hr-v').value.trim(),dateGiven:document.getElementById('hr-d').value,nextDue:document.getElementById('hr-nd').value||null,cost:+document.getElementById('hr-c').value||0,notes:document.getElementById('hr-notes').value.trim()});
+  toast('Health record saved!');document.getElementById('page-animal-view')._tab='hrecs';renderAnimalView(id);
+}
+
+// ──────────────────────────────────────────────
+// ANIMAL ADD / EDIT
+// ──────────────────────────────────────────────
+function renderAnimalAdd(){
+  const el=document.getElementById('page-animal-add');
+  el.innerHTML=`
+  <div class="bc"><a onclick="go('livestock')">Herd</a> › <span>Register Animal</span></div>
+  <div class="panel" style="max-width:680px">
+    <div class="ph"><span class="ph-t">🐄 Register New Animal</span></div>
+    <div style="padding:20px">
+      <div id="add-err" class="alert-bar" style="display:none;margin-bottom:14px"></div>
+      <p style="font-size:9px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--bdr)">Basic Information</p>
+      <div class="fgrid" style="margin-bottom:14px">
+        <div class="fg"><label class="fl">Tag ID <span class="req">*</span></label><input type="text" id="a-tag" class="fi" placeholder="e.g. COW-001"></div>
+        <div class="fg"><label class="fl">Name</label><input type="text" id="a-name" class="fi" placeholder="e.g. Bessie"></div>
+        <div class="fg"><label class="fl">Type <span class="req">*</span></label>
+          <select id="a-type" class="fs"><option value="">— Select —</option>
+            ${['cow','goat','poultry','sheep','pig','other'].map(t=>`<option value="${t}">${aicon(t)} ${t}</option>`).join('')}
+          </select>
+        </div>
+        <div class="fg"><label class="fl">Breed</label><input type="text" id="a-breed" class="fi" placeholder="e.g. Friesian"></div>
+        <div class="fg"><label class="fl">Gender <span class="req">*</span></label>
+          <select id="a-gender" class="fs"><option value="">— Select —</option><option value="female">♀ Female</option><option value="male">♂ Male</option></select>
+        </div>
+        <div class="fg"><label class="fl">Date of Birth</label><input type="date" id="a-dob" class="fi"></div>
+      </div>
+      <p style="font-size:9px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--bdr)">Physical & Financial</p>
+      <div class="fgrid" style="margin-bottom:14px">
+        <div class="fg"><label class="fl">Weight (kg)</label><input type="number" id="a-weight" class="fi" step="0.01" placeholder="0.00"></div>
+        <div class="fg"><label class="fl">Color</label><input type="text" id="a-color" class="fi" placeholder="e.g. Black & White"></div>
+        <div class="fg"><label class="fl">Source</label><input type="text" id="a-source" class="fi" placeholder="Purchased / Born here"></div>
+        <div class="fg"><label class="fl">Purchase Price (₦)</label><input type="number" id="a-buy" class="fi" value="0" step="0.01"></div>
+        <div class="fg"><label class="fl">Current Value (₦)</label><input type="number" id="a-val" class="fi" value="0" step="0.01"></div>
+        <div class="fg"><label class="fl">Health Status</label>
+          <select id="a-status" class="fs"><option value="healthy">✅ Healthy</option><option value="sick">🚨 Sick</option><option value="recovering">💊 Recovering</option></select>
+        </div>
+        <div class="fg"><label class="fl">Reproductive Status</label><input type="text" id="a-repro" class="fi" placeholder="e.g. Pregnant, Lactating"></div>
+      </div>
+      <div class="fg" style="margin-bottom:18px"><label class="fl">Notes</label><textarea id="a-notes" class="ft" placeholder="Any additional info…"></textarea></div>
+      <div style="display:flex;gap:10px">
+        <button class="btn p" onclick="submitAnimalAdd()">💾 Register Animal</button>
+        <button class="btn" onclick="go('livestock')">Cancel</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function submitAnimalAdd(){
+  const tagId=document.getElementById('a-tag').value.trim();
+  const type=document.getElementById('a-type').value;
+  const gender=document.getElementById('a-gender').value;
+  const errEl=document.getElementById('add-err');errEl.style.display='none';
+  if(!tagId){errEl.innerHTML='⚠ Tag ID is required.';errEl.style.display='flex';return;}
+  if(!type){errEl.innerHTML='⚠ Please select animal type.';errEl.style.display='flex';return;}
+  if(!gender){errEl.innerHTML='⚠ Please select gender.';errEl.style.display='flex';return;}
+  if(DB.animals().find(a=>a.tagId===tagId)){errEl.innerHTML='⚠ Tag ID already exists.';errEl.style.display='flex';return;}
+  const id=DB.saveAnimal({tagId,type,gender,name:document.getElementById('a-name').value.trim(),breed:document.getElementById('a-breed').value.trim(),dob:document.getElementById('a-dob').value,weight:+document.getElementById('a-weight').value||0,color:document.getElementById('a-color').value.trim(),source:document.getElementById('a-source').value.trim(),buyPrice:+document.getElementById('a-buy').value||0,value:+document.getElementById('a-val').value||0,status:document.getElementById('a-status').value,repro:document.getElementById('a-repro').value.trim(),notes:document.getElementById('a-notes').value.trim(),active:true});
+  toast('Animal registered!');updateBadges();go('animal-view',id);
+}
+
+function renderAnimalEdit(id){
+  const a=DB.animal(id);
+  if(!a){go('livestock');return;}
+  const el=document.getElementById('page-animal-edit');
+  el.innerHTML=`
+  <div class="bc"><a onclick="go('livestock')">Herd</a> › <a onclick="go('animal-view',${a.id})">${a.name||a.tagId}</a> › <span>Edit</span></div>
+  <div class="panel" style="max-width:680px">
+    <div class="ph"><span class="ph-t">✏ Edit — <span class="mono" style="font-size:11px;color:var(--text3)">${a.tagId}</span></span></div>
+    <div style="padding:20px">
+      <div class="fgrid" style="margin-bottom:14px">
+        <div class="fg"><label class="fl">Name</label><input type="text" id="ea-name" class="fi" value="${a.name||''}"></div>
+        <div class="fg"><label class="fl">Breed</label><input type="text" id="ea-breed" class="fi" value="${a.breed||''}"></div>
+        <div class="fg"><label class="fl">Date of Birth</label><input type="date" id="ea-dob" class="fi" value="${a.dob||''}"></div>
+        <div class="fg"><label class="fl">Weight (kg)</label><input type="number" id="ea-weight" class="fi" value="${a.weight||0}" step="0.01"></div>
+        <div class="fg"><label class="fl">Color</label><input type="text" id="ea-color" class="fi" value="${a.color||''}"></div>
+        <div class="fg"><label class="fl">Source</label><input type="text" id="ea-source" class="fi" value="${a.source||''}"></div>
+        <div class="fg"><label class="fl">Purchase Price (₦)</label><input type="number" id="ea-buy" class="fi" value="${a.buyPrice||0}" step="0.01"></div>
+        <div class="fg"><label class="fl">Current Value (₦)</label><input type="number" id="ea-val" class="fi" value="${a.value||0}" step="0.01"></div>
+        <div class="fg"><label class="fl">Health Status</label>
+          <select id="ea-status" class="fs">${['healthy','sick','recovering','deceased'].map(s=>`<option value="${s}" ${a.status===s?'selected':''}>${s}</option>`).join('')}</select>
+        </div>
+        <div class="fg"><label class="fl">Reproductive Status</label><input type="text" id="ea-repro" class="fi" value="${a.repro||''}"></div>
+        <div class="fg f2"><label class="fl">Notes</label><textarea id="ea-notes" class="ft">${a.notes||''}</textarea></div>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;margin-bottom:18px;cursor:pointer">
+        <input type="checkbox" id="ea-active" ${a.active!==false?'checked':''} style="width:15px;height:15px">
+        Animal is Active (uncheck = sold/removed)
+      </label>
+      <div style="display:flex;gap:10px">
+        <button class="btn p" onclick="submitAnimalEdit(${id})">💾 Save Changes</button>
+        <button class="btn" onclick="go('animal-view',${id})">Cancel</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function submitAnimalEdit(id){
+  const a=DB.animal(id);
+  Object.assign(a,{name:document.getElementById('ea-name').value.trim(),breed:document.getElementById('ea-breed').value.trim(),dob:document.getElementById('ea-dob').value,weight:+document.getElementById('ea-weight').value||0,color:document.getElementById('ea-color').value.trim(),source:document.getElementById('ea-source').value.trim(),buyPrice:+document.getElementById('ea-buy').value||0,value:+document.getElementById('ea-val').value||0,status:document.getElementById('ea-status').value,repro:document.getElementById('ea-repro').value.trim(),notes:document.getElementById('ea-notes').value.trim(),active:document.getElementById('ea-active').checked});
+  DB.saveAnimal(a);toast('Animal updated!');updateBadges();go('animal-view',id);
+}
+
+// ──────────────────────────────────────────────
+// HEALTH MONITOR
+// ──────────────────────────────────────────────
+function renderHealth(){
+  const animals=DB.animals().filter(a=>a.active!==false);
+  const sick=animals.filter(a=>a.status==='sick');
+  const recovering=animals.filter(a=>a.status==='recovering');
+  const healthy=animals.filter(a=>a.status==='healthy');
+  const care=animals.filter(a=>a.status!=='healthy');
+  const healthDue=DB.upcomingHealth();
+  const allHrecs=animals.flatMap(a=>DB.hrecs(a.id)).sort((a,b)=>b.ts-a.ts);
+  const el=document.getElementById('page-health');
+  const tab=el._tab||'care';
+
+  el.innerHTML=`
+  ${sick.length?`<div class="alert-bar"><span style="font-size:16px">🚨</span><span><strong>${sick.map(a=>a.name||a.tagId).join(', ')} — requires immediate attention.</strong> Isolate and contact your vet.</span></div>`:''}
+  <div class="kpis k4">
+    <div class="kpi" style="--ka:var(--green)"><div class="kpi-lbl">Healthy</div><div class="kpi-val g">${healthy.length}</div><div class="kpi-d du">${animals.length?Math.round(healthy.length/animals.length*100):0}% of herd</div></div>
+    <div class="kpi" style="--ka:var(--red)"><div class="kpi-lbl">Under Care</div><div class="kpi-val ${care.length?'r':''}">${care.length}</div><div class="kpi-d dd">${sick.length} sick · ${recovering.length} recovering</div></div>
+    <div class="kpi" style="--ka:var(--amber)"><div class="kpi-lbl">Vaccinations Due</div><div class="kpi-val">${healthDue.length}</div><div class="kpi-d dn">Next 30 days</div></div>
+    <div class="kpi" style="--ka:var(--blue)"><div class="kpi-lbl">Mortality</div><div class="kpi-val g">0</div><div class="kpi-d du">Zero deaths this month</div></div>
+  </div>
+
+  <div class="panel" style="margin-bottom:14px">
+    <div class="ph"><span class="ph-t">Pen Health Heatmap</span><span class="ph-m">Click for animal profile</span></div>
+    <div class="hm-grid">
+      ${animals.slice(0,12).map(a=>{
+        const cls=a.status==='healthy'?'hm-g':a.status==='sick'?'hm-b':a.status==='recovering'?'hm-w':'hm-o';
+        const pct=a.status==='healthy'?'99%':a.status==='sick'?'⚠':a.status==='recovering'?'85%':'—';
+        return`<div class="hm-cell ${cls}" onclick="go('animal-view',${a.id})" title="${a.name||a.tagId}"><div>${a.tagId.slice(-4)}</div><div>${pct}</div></div>`;
+      }).join('')}
+      ${Array(Math.max(0,12-animals.length)).fill('<div class="hm-cell hm-o"><div>—</div><div>—</div></div>').join('')}
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="tab-bar">
+      ${[['care','🏥 Under Care'],['schedule','💉 Schedule'],['all-recs','📋 All Records'],['add-rec','➕ Add Record']].map(([k,l])=>
+        `<button class="tab-btn ${tab===k?'on':''}" onclick="document.getElementById('page-health')._tab='${k}';renderHealth()">${l}</button>`
+      ).join('')}
+    </div>
+
+    <div style="display:${tab==='care'?'block':'none'}">
+      ${!care.length?`<div class="empty"><div class="empty-i">✅</div><h3>All Clear</h3><p>No animals currently under care.</p></div>`:`
+      <div class="h-grid" style="padding:16px">
+        ${care.map(a=>{
+          const logs=DB.logs(a.id).sort((x,y)=>y.ts-x.ts);
+          const ll=logs[0];
+          return`<div class="hcard" onclick="go('animal-view',${a.id})">
+            <div class="hcard-top"><div class="hcard-ico">${aicon(a.type)}</div>
+              <div style="flex:1"><div class="hcard-name">${a.name||a.tagId}</div><div class="hcard-breed">${a.breed||a.type} · ${a.tagId}</div></div>
+              ${chip(a.status)}
+            </div>
+            <div class="hcard-ms">
+              <div class="hm"><div class="hm-l">Temp</div><div class="hm-v ${a.status==='sick'?'bad':''}">${ll?.temp?ll.temp+'°C':'—'}</div></div>
+              <div class="hm"><div class="hm-l">Weight</div><div class="hm-v">${a.weight?a.weight+' kg':'—'}</div></div>
+              <div class="hm"><div class="hm-l">Status</div><div class="hm-v ${a.status==='sick'?'bad':'warn'}">${a.status}</div></div>
+            </div>
+            <div class="hcard-note">${a.notes||'Click to view profile and add treatment.'} <span style="color:var(--amber)">Tap ↗</span></div>
+          </div>`;
+        }).join('')}
+      </div>`}
+    </div>
+
+    <div style="display:${tab==='schedule'?'block':'none'}">
+      ${!healthDue.length?`<div class="empty"><div class="empty-i">💉</div><h3>No Upcoming</h3><p>All vaccinations are up to date.</p></div>`:`
+      <table class="tbl"><thead><tr><th>Animal</th><th>Type</th><th>Vaccine</th><th>Due Date</th><th>Days Left</th><th>Vet</th><th>Status</th></tr></thead>
+      <tbody>${healthDue.map(h=>{
+        const a=DB.animal(h.aid);const days=daysUntil(h.nextDue);
+        return`<tr onclick="go('animal-view',${h.aid})">
+          <td><strong>${a?.name||h.aid}</strong> <span class="t-dim">${a?.tagId||''}</span></td>
+          <td>${chipC('blue',h.type)}</td>
+          <td><strong>${h.name||'—'}</strong></td>
+          <td class="mono">${fdate(h.nextDue)}</td>
+          <td class="mono ${days<=3?'t-bad':days<=7?'t-warn':''}">${days===0?'Today!':days+' days'}</td>
+          <td>${h.vet||'—'}</td>
+          <td>${chipC(days<=3?'bad':days<=7?'warn':'blue',days<=3?'Urgent':days<=7?'Soon':'Scheduled')}</td>
+        </tr>`;
+      }).join('')}</tbody></table>`}
+    </div>
+
+    <div style="display:${tab==='all-recs'?'block':'none'}">
+      ${!allHrecs.length?`<div class="empty"><div class="empty-i">📋</div><h3>No Records</h3></div>`:`
+      <table class="tbl"><thead><tr><th>Animal</th><th>Type</th><th>Vaccine/Meds</th><th>Date Given</th><th>Next Due</th><th>Cost</th></tr></thead>
+      <tbody>${allHrecs.slice(0,20).map(h=>{const a=DB.animal(h.aid);return`<tr onclick="go('animal-view',${h.aid})">
+        <td>${a?.name||h.aid}</td><td>${chipC('blue',h.type)}</td><td><strong>${h.name||'—'}</strong></td>
+        <td class="mono">${fdate(h.dateGiven)}</td><td class="mono">${h.nextDue?fdate(h.nextDue):'—'}</td>
+        <td class="mono">${h.cost?cur(h.cost):'—'}</td>
+      </tr>`}).join('')}</tbody></table>`}
+    </div>
+
+    <div style="display:${tab==='add-rec'?'block':'none'};padding:20px">
+      <div style="max-width:500px">
+        <div class="fgrid">
+          <div class="fg"><label class="fl">Animal <span class="req">*</span></label>
+            <select id="hr-aid" class="fs"><option value="">— Select Animal —</option>
+              ${DB.animals().filter(a=>a.active!==false).map(a=>`<option value="${a.id}">${a.name||a.tagId} (${a.type})</option>`).join('')}
+            </select>
+          </div>
+          <div class="fg"><label class="fl">Record Type</label>
+            <select id="hr2-t" class="fs"><option value="vaccination">💉 Vaccination</option><option value="treatment">💊 Treatment</option><option value="checkup">🩺 Checkup</option><option value="deworming">🪱 Deworming</option></select>
+          </div>
+          <div class="fg"><label class="fl">Vaccine / Medicine</label><input type="text" id="hr2-n" class="fi" placeholder="e.g. FMD Booster"></div>
+          <div class="fg"><label class="fl">Vet Name</label><input type="text" id="hr2-v" class="fi" placeholder="Dr. Emeka"></div>
+          <div class="fg"><label class="fl">Date Given</label><input type="date" id="hr2-d" class="fi" value="${new Date().toISOString().slice(0,10)}"></div>
+          <div class="fg"><label class="fl">Next Due Date</label><input type="date" id="hr2-nd" class="fi"></div>
+          <div class="fg"><label class="fl">Cost (₦)</label><input type="number" id="hr2-c" class="fi" value="0" step="0.01"></div>
+          <div class="fg"><label class="fl">Notes</label><input type="text" id="hr2-notes" class="fi" placeholder="Optional"></div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:8px">
+          <button class="btn p" onclick="submitHealthRec()">💾 Save Record</button>
+          <button class="btn" onclick="document.getElementById('page-health')._tab='care';renderHealth()">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function submitHealthRec(){
+  const aid=+document.getElementById('hr-aid').value;
+  if(!aid){toast('Please select an animal.','error');return;}
+  DB.addHrec({aid,type:document.getElementById('hr2-t').value,name:document.getElementById('hr2-n').value.trim(),vet:document.getElementById('hr2-v').value.trim(),dateGiven:document.getElementById('hr2-d').value,nextDue:document.getElementById('hr2-nd').value||null,cost:+document.getElementById('hr2-c').value||0,notes:document.getElementById('hr2-notes').value.trim()});
+  toast('Health record saved!');document.getElementById('page-health')._tab='schedule';renderHealth();
+}
+
+// ──────────────────────────────────────────────
+// CROPS
+// ──────────────────────────────────────────────
+function renderCrops(){
+  const plots=DB.plots();
+  const el=document.getElementById('page-crops');
+  const totalHa=plots.reduce((s,p)=>s+(+p.ha||0),0);
+  const allInputs=DB.get('inputs');
+  const allHarvs=DB.get('harvests');
+  const totalCost=plots.reduce((s,p)=>s+allInputs.filter(i=>i.pid===p.id).reduce((ss,i)=>ss+(+i.cost||0),0),0);
+  const totalRev=plots.reduce((s,p)=>s+allHarvs.filter(h=>h.pid===p.id).reduce((ss,h)=>ss+(+h.total||0),0),0);
+
+  el.innerHTML=`
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+    <div><h2 style="font-size:18px;font-weight:800">Crop Plots</h2><p class="t-dim" style="font-size:12px;margin-top:2px">${plots.length} plots · ${totalHa.toFixed(1)} hectares</p></div>
+    <button class="btn p" onclick="go('crop-add')">+ Add Plot</button>
+  </div>
+  <div class="kpis k4" style="margin-bottom:14px">
+    <div class="kpi" style="--ka:var(--green)"><div class="kpi-lbl">Total Plots</div><div class="kpi-val">${plots.length}</div></div>
+    <div class="kpi" style="--ka:var(--amber)"><div class="kpi-lbl">Hectares</div><div class="kpi-val">${totalHa.toFixed(1)}</div></div>
+    <div class="kpi" style="--ka:var(--blue)"><div class="kpi-lbl">Total Revenue</div><div class="kpi-val">${cur(totalRev)}</div></div>
+    <div class="kpi" style="--ka:${(totalRev-totalCost)>=0?'var(--green)':'var(--red)'}"><div class="kpi-lbl">Net Profit</div><div class="kpi-val ${(totalRev-totalCost)>=0?'g':'r'}">${cur(totalRev-totalCost)}</div></div>
+  </div>
+  ${!plots.length?`<div class="empty"><div class="empty-i">🌱</div><h3>No Crop Plots</h3><p>Register your farm plots to start tracking crops.</p><button class="btn p" onclick="go('crop-add')">+ Add First Plot</button></div>`:`
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px">
+    ${plots.map(p=>{
+      const pins=allInputs.filter(i=>i.pid===p.id).reduce((s,i)=>s+(+i.cost||0),0);
+      const prev=allHarvs.filter(h=>h.pid===p.id).reduce((s,h)=>s+(+h.total||0),0);
+      const profit=prev-pins;
+      const pr=prog(p.planted,p.harvest);
+      const sc={planted:'ok',growing:'blue',harvested:'gray',preparing:'warn',fallow:'gray'}[p.status]||'gray';
+      return`<div class="panel">
+        <div class="ph"><span class="ph-t">${p.name}</span>${chipC(sc,p.status)}</div>
+        <div style="padding:14px">
+          <p style="font-size:12px;color:var(--text3);margin-bottom:10px">${p.crop} · ${p.ha}ha · ${p.soil||'—'}</p>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
+            <div style="background:var(--surf2);border-radius:var(--r);padding:8px;text-align:center">
+              <div style="font-size:10px;color:var(--text3)">Inputs</div>
+              <div style="font-size:12px;font-weight:700;color:var(--red)">${cur(pins)}</div>
+            </div>
+            <div style="background:var(--surf2);border-radius:var(--r);padding:8px;text-align:center">
+              <div style="font-size:10px;color:var(--text3)">Revenue</div>
+              <div style="font-size:12px;font-weight:700;color:var(--green-t)">${cur(prev)}</div>
+            </div>
+            <div style="background:var(--surf2);border-radius:var(--r);padding:8px;text-align:center">
+              <div style="font-size:10px;color:var(--text3)">Profit</div>
+              <div style="font-size:12px;font-weight:700;color:${profit>=0?'var(--green-t)':'var(--red)'}">${cur(profit)}</div>
+            </div>
+          </div>
+          ${p.planted&&p.harvest?`<div class="prog-wrap">
+            <div class="prog-labels"><span>${fdateS(p.planted)}</span><span>${pr}% · ${fdateS(p.harvest)}</span></div>
+            <div class="prog-bar"><div class="prog-fill" style="width:${pr}%"></div></div>
+          </div>`:''}
+          <button class="btn p" style="width:100%;margin-top:10px;justify-content:center" onclick="go('crop-view',${p.id})">👁 View Details</button>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`}`;
+}
+
+function renderCropAdd(){
+  const el=document.getElementById('page-crop-add');
+  el.innerHTML=`
+  <div class="bc"><a onclick="go('crops')">Crops</a> › <span>Add Plot</span></div>
+  <div class="panel" style="max-width:620px">
+    <div class="ph"><span class="ph-t">🌱 Register New Plot</span></div>
+    <div style="padding:20px">
+      <div id="cp-err" class="alert-bar" style="display:none;margin-bottom:14px"></div>
+      <div class="fgrid" style="margin-bottom:14px">
+        <div class="fg"><label class="fl">Plot Name <span class="req">*</span></label><input type="text" id="cp-name" class="fi" placeholder="e.g. North Field A"></div>
+        <div class="fg"><label class="fl">Crop Type <span class="req">*</span></label><input type="text" id="cp-crop" class="fi" placeholder="e.g. Maize, Cassava"></div>
+        <div class="fg"><label class="fl">Size (Hectares) <span class="req">*</span></label><input type="number" id="cp-ha" class="fi" step="0.01" min="0.01" placeholder="e.g. 2.5"></div>
+        <div class="fg"><label class="fl">Status</label>
+          <select id="cp-status" class="fs"><option value="preparing">🔄 Preparing</option><option value="planted" selected>🌱 Planted</option><option value="growing">🌿 Growing</option><option value="harvested">🌾 Harvested</option><option value="fallow">⬜ Fallow</option></select>
+        </div>
+        <div class="fg"><label class="fl">Planting Date</label><input type="date" id="cp-plant" class="fi"></div>
+        <div class="fg"><label class="fl">Expected Harvest</label><input type="date" id="cp-harvest" class="fi"></div>
+        <div class="fg"><label class="fl">Soil Type</label><input type="text" id="cp-soil" class="fi" placeholder="e.g. Loamy"></div>
+        <div class="fg"><label class="fl">Irrigation</label><input type="text" id="cp-water" class="fi" placeholder="e.g. Rain-fed, Drip"></div>
+        <div class="fg f2"><label class="fl">Notes</label><textarea id="cp-notes" class="ft" placeholder="Additional details…"></textarea></div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn p" onclick="submitCropAdd()">💾 Save Plot</button>
+        <button class="btn" onclick="go('crops')">Cancel</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function submitCropAdd(){
+  const name=document.getElementById('cp-name').value.trim();
+  const crop=document.getElementById('cp-crop').value.trim();
+  const ha=+document.getElementById('cp-ha').value;
+  const errEl=document.getElementById('cp-err');errEl.style.display='none';
+  if(!name){errEl.innerHTML='⚠ Plot name required.';errEl.style.display='flex';return;}
+  if(!crop){errEl.innerHTML='⚠ Crop type required.';errEl.style.display='flex';return;}
+  if(ha<=0){errEl.innerHTML='⚠ Size must be greater than 0.';errEl.style.display='flex';return;}
+  const id=DB.savePlot({name,crop,ha,status:document.getElementById('cp-status').value,planted:document.getElementById('cp-plant').value,harvest:document.getElementById('cp-harvest').value,soil:document.getElementById('cp-soil').value.trim(),water:document.getElementById('cp-water').value.trim(),notes:document.getElementById('cp-notes').value.trim()});
+  toast('Plot saved!');go('crop-view',id);
+}
+
+function renderCropView(id){
+  const p=DB.plot(id);
+  if(!p){go('crops');return;}
+  const el=document.getElementById('page-crop-view');
+  const tab=el._tab||'inputs';
+  const inputs=DB.inputs(id).sort((a,b)=>b.ts-a.ts);
+  const harvests=DB.harvests(id).sort((a,b)=>b.ts-a.ts);
+  const totalCost=inputs.reduce((s,i)=>s+(+i.cost||0),0);
+  const totalRev=harvests.reduce((s,h)=>s+(+h.total||0),0);
+  const totalKg=harvests.reduce((s,h)=>s+(+h.qty||0),0);
+  const profit=totalRev-totalCost;
+  const yph=p.ha>0?+(totalKg/p.ha).toFixed(1):0;
+  const pr=prog(p.planted,p.harvest);
+  const sc={planted:'ok',growing:'blue',harvested:'gray',preparing:'warn',fallow:'gray'}[p.status]||'gray';
+
+  el.innerHTML=`
+  <div class="bc"><a onclick="go('crops')">Crops</a> › <span>${p.name}</span></div>
+  <div class="panel" style="margin-bottom:14px;padding:18px">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div style="width:48px;height:48px;background:var(--green-l);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:26px">🌾</div>
+        <div><div style="font-size:17px;font-weight:800">${p.name}</div>
+          <div class="t-dim" style="font-size:12px;margin-top:2px">${p.crop} · ${p.ha}ha${p.soil?' · '+p.soil:''}${p.water?' · '+p.water:''}</div>
+        </div>
+      </div>
+      ${chipC(sc,p.status)}
+    </div>
+    ${p.planted&&p.harvest?`<div style="margin-top:14px">
+      <div class="prog-labels"><span>🌱 ${fdate(p.planted)}</span><span>${pr}% complete</span><span>🌾 ${fdate(p.harvest)}</span></div>
+      <div class="prog-bar" style="height:10px;margin-top:5px"><div class="prog-fill" style="width:${pr}%"></div></div>
+    </div>`:''}
+  </div>
+  <div class="kpis k4" style="margin-bottom:14px">
+    <div class="kpi" style="--ka:var(--red)"><div class="kpi-lbl">Total Inputs</div><div class="kpi-val r">${cur(totalCost)}</div></div>
+    <div class="kpi" style="--ka:var(--green)"><div class="kpi-lbl">Revenue</div><div class="kpi-val g">${cur(totalRev)}</div></div>
+    <div class="kpi" style="--ka:${profit>=0?'var(--green)':'var(--red)'}"><div class="kpi-lbl">Net Profit</div><div class="kpi-val ${profit>=0?'g':'r'}">${cur(profit)}</div></div>
+    <div class="kpi" style="--ka:var(--amber)"><div class="kpi-lbl">Yield/Ha</div><div class="kpi-val">${yph} <span style="font-size:13px">kg</span></div></div>
+  </div>
+  <div class="panel">
+    <div class="tab-bar">
+      ${[['inputs','🧪 Inputs'],['harvests','🌾 Harvests'],['add-input','➕ Log Input'],['add-harvest','📦 Log Harvest']].map(([k,l])=>
+        `<button class="tab-btn ${tab===k?'on':''}" onclick="document.getElementById('page-crop-view')._tab='${k}';renderCropView(${id})">${l}</button>`
+      ).join('')}
+    </div>
+
+    <div style="display:${tab==='inputs'?'block':'none'}">
+      ${!inputs.length?`<div class="empty" style="padding:30px"><div class="empty-i">🧪</div><h3>No Inputs</h3></div>`:`
+      <table class="tbl"><thead><tr><th>Date</th><th>Type</th><th>Product</th><th>Qty</th><th>Cost</th></tr></thead>
+      <tbody>${inputs.map(i=>`<tr><td class="mono">${fdate(i.date)}</td><td>${chipC('ok',i.inputType)}</td><td><strong>${i.name||'—'}</strong></td><td>${i.qty?i.qty+' '+i.unit:'—'}</td><td class="mono t-bad">${cur(i.cost)}</td></tr>`).join('')}</tbody>
+      <tfoot><tr><td colspan="4" style="text-align:right;padding:9px 14px;font-weight:700">Total</td><td class="mono t-bad" style="padding:9px 14px;font-weight:800">${cur(totalCost)}</td></tr></tfoot>
+      </table>`}
+    </div>
+
+    <div style="display:${tab==='harvests'?'block':'none'}">
+      ${!harvests.length?`<div class="empty" style="padding:30px"><div class="empty-i">🌾</div><h3>No Harvests</h3></div>`:`
+      <div style="padding:14px;display:flex;flex-direction:column;gap:10px">
+        ${harvests.map(h=>`<div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--green-l);border-radius:var(--r);border:1px solid var(--green-m)">
+          <div style="font-size:26px">🌾</div>
+          <div style="flex:1"><div style="font-weight:700;font-size:13px">${(+h.qty).toFixed(1)} kg harvested</div>
+          <div class="mono t-dim" style="font-size:10px">${fdate(h.date)}${h.buyer?' · '+h.buyer:''}</div></div>
+          <div style="text-align:right"><div style="font-weight:800;color:var(--green-t)">${cur(h.total)}</div>
+          <div class="mono t-dim" style="font-size:10px">${cur(h.price)}/kg</div></div>
+        </div>`).join('')}
+      </div>`}
+    </div>
+
+    <div style="display:${tab==='add-input'?'block':'none'};padding:20px">
+      <div style="max-width:500px">
+        <div class="fgrid">
+          <div class="fg"><label class="fl">Input Type</label>
+            <select id="ci-t" class="fs"><option value="fertilizer">🌱 Fertilizer</option><option value="pesticide">🐛 Pesticide</option><option value="herbicide">🌿 Herbicide</option><option value="seed">🌾 Seed</option><option value="water">💧 Water</option><option value="labour">👷 Labour</option><option value="other">📦 Other</option></select>
+          </div>
+          <div class="fg"><label class="fl">Product Name</label><input type="text" id="ci-n" class="fi" placeholder="e.g. NPK 15-15-15"></div>
+          <div class="fg"><label class="fl">Quantity</label><input type="number" id="ci-qty" class="fi" step="0.01" placeholder="0.00"></div>
+          <div class="fg"><label class="fl">Unit</label><input type="text" id="ci-unit" class="fi" value="kg" placeholder="kg, L, bags"></div>
+          <div class="fg"><label class="fl">Cost (₦)</label><input type="number" id="ci-cost" class="fi" step="0.01" value="0"></div>
+          <div class="fg"><label class="fl">Date Applied</label><input type="date" id="ci-date" class="fi" value="${new Date().toISOString().slice(0,10)}"></div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:8px">
+          <button class="btn p" onclick="submitInput(${id})">💾 Save Input</button>
+          <button class="btn" onclick="document.getElementById('page-crop-view')._tab='inputs';renderCropView(${id})">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:${tab==='add-harvest'?'block':'none'};padding:20px">
+      <div style="max-width:500px">
+        <div class="fgrid">
+          <div class="fg"><label class="fl">Quantity (kg) <span class="req">*</span></label><input type="number" id="ch-qty" class="fi" step="0.01" placeholder="0.00"></div>
+          <div class="fg"><label class="fl">Price per kg (₦)</label><input type="number" id="ch-price" class="fi" step="0.01" value="0"></div>
+          <div class="fg"><label class="fl">Harvest Date</label><input type="date" id="ch-date" class="fi" value="${new Date().toISOString().slice(0,10)}"></div>
+          <div class="fg"><label class="fl">Buyer Name</label><input type="text" id="ch-buyer" class="fi" placeholder="Optional"></div>
+          <div class="fg f2"><label class="fl">Notes</label><textarea id="ch-notes" class="ft"></textarea></div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:8px">
+          <button class="btn p" onclick="submitHarvest(${id})">💾 Record Harvest</button>
+          <button class="btn" onclick="document.getElementById('page-crop-view')._tab='harvests';renderCropView(${id})">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function submitInput(pid){
+  const qty=+document.getElementById('ci-qty').value||0;
+  DB.addInput({pid,inputType:document.getElementById('ci-t').value,name:document.getElementById('ci-n').value.trim(),qty,unit:document.getElementById('ci-unit').value.trim()||'kg',cost:+document.getElementById('ci-cost').value||0,date:document.getElementById('ci-date').value,notes:''});
+  toast('Input saved!');document.getElementById('page-crop-view')._tab='inputs';renderCropView(pid);
+}
+
+function submitHarvest(pid){
+  const qty=+document.getElementById('ch-qty').value||0;
+  if(!qty){toast('Enter quantity.','error');return;}
+  DB.addHarvest({pid,qty,price:+document.getElementById('ch-price').value||0,date:document.getElementById('ch-date').value,buyer:document.getElementById('ch-buyer').value.trim(),notes:document.getElementById('ch-notes').value.trim()});
+  const p=DB.plot(pid);if(p){p.status='harvested';DB.savePlot(p);}
+  toast('Harvest recorded!');document.getElementById('page-crop-view')._tab='harvests';renderCropView(pid);
+}
+
+// ──────────────────────────────────────────────
+// EXECUTIVE / ANALYTICS
+// ──────────────────────────────────────────────
+function renderExecutive(){
+  const animals=DB.animals().filter(a=>a.active!==false);
+  const plots=DB.plots();
+  const trans=DB.trans();
+  const allIn=DB.get('inputs');
+  const allHv=DB.get('harvests');
+
+  const income=trans.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const expense=trans.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const net=income-expense;
+  const lVal=animals.reduce((s,a)=>s+(+a.value||0),0);
+  const lCost=animals.reduce((s,a)=>s+(+a.buyPrice||0),0);
+  const lROI=lCost>0?+((lVal-lCost)/lCost*100).toFixed(1):0;
+  const dead=animals.filter(a=>a.status==='deceased').length;
+  const mortal=animals.length>0?+(dead/animals.length*100).toFixed(1):0;
+  const totalHa=plots.reduce((s,p)=>s+(+p.ha||0),0);
+  const cropCost=plots.reduce((s,p)=>s+allIn.filter(i=>i.pid===p.id).reduce((ss,i)=>ss+(+i.cost||0),0),0);
+  const cropRev=plots.reduce((s,p)=>s+allHv.filter(h=>h.pid===p.id).reduce((ss,h)=>ss+(+h.total||0),0),0);
+  const cropKg=plots.reduce((s,p)=>s+allHv.filter(h=>h.pid===p.id).reduce((ss,h)=>ss+(+h.qty||0),0),0);
+  const yph=totalHa>0?+(cropKg/totalHa).toFixed(1):0;
+
+  const mL=[],mI=[],mE=[];
+  for(let i=11;i>=0;i--){const d=new Date();d.setMonth(d.getMonth()-i);const ym=d.toISOString().slice(0,7);
+    mL.push(d.toLocaleString('default',{month:'short',year:'2-digit'}));
+    mI.push(trans.filter(t=>t.type==='income'&&t.date?.startsWith(ym)).reduce((s,t)=>s+t.amount,0));
+    mE.push(trans.filter(t=>t.type==='expense'&&t.date?.startsWith(ym)).reduce((s,t)=>s+t.amount,0));}
+
+  const recentT=trans.sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,8);
+  const el=document.getElementById('page-executive');
+
+  el.innerHTML=`
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+    <div><h2 style="font-size:18px;font-weight:800">Analytics & Reporting</h2>
+    <p class="t-dim" style="font-size:12px;margin-top:2px">Complete farm intelligence — ${new Date().toLocaleString('default',{month:'long',year:'numeric'})}</p></div>
+    <button class="btn p" onclick="go('transactions')">+ Add Transaction</button>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi" style="--ka:${net>=0?'var(--green)':'var(--red)'}">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:18px">💰</span>${chipC(net>=0?'ok':'bad',net>=0?'PROFIT':'LOSS')}</div>
+      <div class="kpi-lbl">Net Farm Profit</div><div class="kpi-val ${net>=0?'g':'r'}">${cur(net)}</div>
+      <div class="kpi-d ${net>=0?'du':'dd'}">Income − Expenses</div>
+    </div>
+    <div class="kpi" style="--ka:var(--blue)">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:18px">🏪</span>${chipC('blue','VALUE')}</div>
+      <div class="kpi-lbl">Total Farm Value</div><div class="kpi-val">${cur(lVal+cropRev)}</div><div class="kpi-d dn">Livestock + Crops</div>
+    </div>
+    <div class="kpi" style="--ka:${lROI>=0?'var(--green)':'var(--red)'}">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:18px">📈</span>${chipC(lROI>=0?'ok':'bad','ROI')}</div>
+      <div class="kpi-lbl">Livestock ROI</div><div class="kpi-val ${lROI>=0?'g':'r'}">${lROI}%</div><div class="kpi-d ${lROI>=0?'du':'dd'}">Based on purchase cost</div>
+    </div>
+    <div class="kpi" style="--ka:${mortal>5?'var(--red)':'var(--green)'}">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:18px">❤</span>${chipC(mortal>5?'bad':'ok','RATE')}</div>
+      <div class="kpi-lbl">Mortality Rate</div><div class="kpi-val ${mortal>5?'r':'g'}">${mortal}%</div><div class="kpi-d ${mortal>5?'dd':'du'}">${dead} deaths recorded</div>
+    </div>
+    <div class="kpi" style="--ka:var(--amber)">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:18px">⚖</span>${chipC('warn','YIELD')}</div>
+      <div class="kpi-lbl">Crop Yield/Ha</div><div class="kpi-val">${yph} <span style="font-size:13px">kg</span></div><div class="kpi-d dn">${totalHa.toFixed(1)}ha total</div>
+    </div>
+  </div>
+
+  <div class="g2" style="margin-bottom:14px">
+    <div class="panel">
+      <div class="ph"><span class="ph-t">12-Month Financial Trend</span><span class="ph-m">Income vs Expenses</span></div>
+      <div style="padding:14px 16px 10px"><canvas id="annual-chart" height="200"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="ph"><span class="ph-t">Income vs Expenses</span></div>
+      <div style="padding:14px 16px;display:flex;align-items:center;gap:16px">
+        <canvas id="pie-chart" height="180" style="max-width:170px"></canvas>
+        <div style="flex:1">
+          ${[['Income',income,'green'],['Expenses',expense,'red'],['Net',net,net>=0?'green':'red']].map(([l,v,c])=>
+            `<div style="background:var(--surf2);border-radius:var(--r);padding:10px 12px;margin-bottom:8px;border:1px solid var(--bdr)">
+              <div class="mono" style="font-size:9px;color:var(--text3);text-transform:uppercase">${l}</div>
+              <div style="font-size:16px;font-weight:800;color:var(--${c}-t);margin-top:2px">${cur(v)}</div>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="g2b" style="margin-bottom:14px">
+    <div class="panel">
+      <div class="ph"><span class="ph-t">Livestock Performance</span></div>
+      ${[['Total Animals',animals.length],['Healthy',animals.filter(a=>a.status==='healthy').length],['Under Care',animals.filter(a=>a.status!=='healthy').length],['Total Value',cur(lVal)],['Purchase Cost',cur(lCost)],['Livestock ROI',lROI+'%'],['Mortality Rate',mortal+'%']].map(([l,v])=>
+        `<div class="fin-row"><span class="fin-lbl">${l}</span><span class="fin-val">${v}</span></div>`).join('')}
+    </div>
+    <div class="panel">
+      <div class="ph"><span class="ph-t">Crop Performance</span></div>
+      ${[['Total Plots',plots.length],['Total Hectares',totalHa.toFixed(2)+' ha'],['Input Cost',cur(cropCost)],['Revenue',cur(cropRev)],['Crop Profit',cur(cropRev-cropCost)],['Total Yield',cropKg.toFixed(1)+' kg'],['Yield/Ha',yph+' kg/ha']].map(([l,v])=>
+        `<div class="fin-row"><span class="fin-lbl">${l}</span><span class="fin-val">${v}</span></div>`).join('')}
+    </div>
+  </div>
+
+  <div class="g2b">
+    <div class="panel">
+      <div class="ph"><span class="ph-t">♻ Circular Economy</span></div>
+      <div style="padding:14px;display:flex;flex-direction:column;gap:10px">
+        ${[['🌱→🐄','Crop Waste as Feed','Use crop by-products to cut livestock feed costs.'],['🐄→🌱','Manure Fertilizer','Channel manure to reduce crop input costs.'],['💧→🌾','Water Recycling','Redirect livestock runoff to irrigate plots.']].map(([ico,t,d])=>
+          `<div style="background:var(--green-l);border:1px solid var(--green-m);border-radius:var(--r);padding:12px">
+            <div style="font-size:20px;margin-bottom:5px">${ico}</div>
+            <div style="font-size:12px;font-weight:700;color:var(--green-t);margin-bottom:3px">${t}</div>
+            <div style="font-size:11px;color:var(--green-t);opacity:.8;line-height:1.5">${d}</div>
+          </div>`).join('')}
+      </div>
+    </div>
+    <div class="panel">
+      <div class="ph"><span class="ph-t">Recent Transactions</span><button class="btn sm" onclick="go('transactions')">View all</button></div>
+      ${!recentT.length?`<div class="empty" style="padding:30px"><div class="empty-i">₦</div><p>No transactions yet.</p></div>`:
+        recentT.map(t=>`<div class="fin-row">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:28px;height:28px;border-radius:8px;background:${t.type==='income'?'var(--green-l)':'var(--red-l)'};display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0">${t.type==='income'?'↓':'↑'}</div>
+            <div><div style="font-size:12px;font-weight:700;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.desc||t.cat}</div>
+            <div class="mono t-dim" style="font-size:10px">${fdate(t.date)}</div></div>
+          </div>
+          <span class="fin-val ${t.type==='income'?'inc':'exp'}">${t.type==='income'?'+':'-'}${cur(t.amount)}</span>
+        </div>`).join('')}
+    </div>
+  </div>`;
+
+  setTimeout(()=>{
+    const ac=document.getElementById('annual-chart');
+    if(ac&&!ac._c){ac._c=new Chart(ac.getContext('2d'),{type:'line',data:{labels:mL,datasets:[
+      {label:'Income',data:mI,borderColor:'var(--green)',backgroundColor:'rgba(45,122,58,.08)',fill:true,tension:.4,borderWidth:2},
+      {label:'Expense',data:mE,borderColor:'var(--red)',backgroundColor:'rgba(168,48,48,.06)',fill:true,tension:.4,borderWidth:2}
+    ]},options:{responsive:true,scales:{y:{beginAtZero:true,ticks:{callback:v=>'₦'+v.toLocaleString(),font:{family:'IBM Plex Mono',size:10}}},x:{grid:{display:false},ticks:{font:{family:'IBM Plex Mono',size:10}}}}}});}
+
+    const cats=[...new Set(trans.filter(t=>t.type==='income').map(t=>t.cat))];
+    const cvals=cats.map(c=>trans.filter(t=>t.type==='income'&&t.cat===c).reduce((s,t)=>s+t.amount,0));
+    const pc=document.getElementById('pie-chart');
+    if(pc&&!pc._c){pc._c=new Chart(pc.getContext('2d'),{type:'doughnut',data:{labels:cats.length?cats:['No data'],datasets:[{data:cvals.length?cvals:[1],backgroundColor:['#2d7a3a','#b87418','#1a60a8','#a83030','#5c5c5a'],borderWidth:0}]},options:{responsive:true,cutout:'60%',plugins:{legend:{position:'bottom',labels:{font:{family:'IBM Plex Mono',size:9},boxWidth:10}}}}});}
+  },50);
+}
+
+// ──────────────────────────────────────────────
+// TRANSACTIONS
+// ──────────────────────────────────────────────
+function renderTransactions(){
+  const el=document.getElementById('page-transactions');
+  const tf=el._tf||'';
+  let trans=DB.trans();
+  const all=trans;
+  const income=all.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const expense=all.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  if(tf)trans=trans.filter(t=>t.type===tf);
+  trans.sort((a,b)=>new Date(b.date)-new Date(a.date));
+
+  const incCats=[...new Set(all.filter(t=>t.type==='income').map(t=>t.cat))];
+  const expCats=[...new Set(all.filter(t=>t.type==='expense').map(t=>t.cat))];
+
+  el.innerHTML=`
+  <div style="margin-bottom:16px"><h2 style="font-size:18px;font-weight:800">Financials</h2></div>
+  <div class="kpis k4" style="margin-bottom:14px">
+    <div class="kpi" style="--ka:var(--green)"><div class="kpi-lbl">Total Income</div><div class="kpi-val g">${cur(income)}</div></div>
+    <div class="kpi" style="--ka:var(--red)"><div class="kpi-lbl">Total Expenses</div><div class="kpi-val r">${cur(expense)}</div></div>
+    <div class="kpi" style="--ka:${(income-expense)>=0?'var(--green)':'var(--red)'}"><div class="kpi-lbl">Net Profit</div><div class="kpi-val ${(income-expense)>=0?'g':'r'}">${cur(income-expense)}</div></div>
+    <div class="kpi" style="--ka:var(--amber)"><div class="kpi-lbl">Profit Margin</div><div class="kpi-val">${income>0?Math.round((income-expense)/income*100):0}%</div></div>
+  </div>
+  <div class="g2b" style="margin-bottom:14px">
+    <div class="panel">
+      <div class="ph"><span class="ph-t">+ Add Transaction</span></div>
+      <div style="padding:16px">
+        <div class="fgrid" style="margin-bottom:12px">
+          <div class="fg"><label class="fl">Type</label><select id="tt" class="fs"><option value="income">💚 Income</option><option value="expense">❤ Expense</option></select></div>
+          <div class="fg"><label class="fl">Category <span class="req">*</span></label><input type="text" id="tc" class="fi" placeholder="e.g. Milk Sale"></div>
+          <div class="fg"><label class="fl">Amount (₦) <span class="req">*</span></label><input type="number" id="ta" class="fi" step="0.01" placeholder="0.00"></div>
+          <div class="fg"><label class="fl">Date</label><input type="date" id="td" class="fi" value="${new Date().toISOString().slice(0,10)}"></div>
+          <div class="fg f2"><label class="fl">Description</label><input type="text" id="tdesc" class="fi" placeholder="Optional notes"></div>
+        </div>
+        <button class="btn p" onclick="submitTrans()">💾 Save Transaction</button>
+      </div>
+    </div>
+    <div>
+      <div class="panel" style="margin-bottom:14px">
+        <div class="ph"><span class="ph-t">Revenue Breakdown</span></div>
+        ${incCats.map(c=>{const v=all.filter(t=>t.type==='income'&&t.cat===c).reduce((s,t)=>s+t.amount,0);return`<div class="fin-row"><span class="fin-lbl">${c}</span><span class="fin-val inc">${cur(v)}</span></div>`;}).join('')||'<div class="fin-row"><span class="t-dim">No income yet</span></div>'}
+        <div class="fin-row tot"><span class="fin-lbl" style="font-weight:700">Total Income</span><span class="fin-val inc" style="font-size:14px">${cur(income)}</span></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="ph-t">Cost Breakdown</span></div>
+        ${expCats.map(c=>{const v=all.filter(t=>t.type==='expense'&&t.cat===c).reduce((s,t)=>s+t.amount,0);return`<div class="fin-row"><span class="fin-lbl">${c}</span><span class="fin-val exp">${cur(v)}</span></div>`;}).join('')||'<div class="fin-row"><span class="t-dim">No expenses yet</span></div>'}
+        <div class="fin-row tot"><span class="fin-lbl" style="font-weight:700">Total Expenses</span><span class="fin-val exp" style="font-size:14px">${cur(expense)}</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <div style="display:flex;align-items:center;gap:8px;padding:11px 16px;border-bottom:1px solid var(--bdr);flex-wrap:wrap">
+      <span style="font-size:12px;font-weight:700">Transactions</span>
+      <div style="display:flex;gap:6px;margin-left:auto">
+        ${[['','All'],['income','Income'],['expense','Expenses']].map(([v,l])=>
+          `<button class="btn sm ${tf===v?'p':''}" onclick="document.getElementById('page-transactions')._tf='${v}';renderTransactions()">${l}</button>`).join('')}
+      </div>
+      <span class="ph-m">${trans.length} records</span>
+    </div>
+    ${!trans.length?`<div class="empty" style="padding:30px"><div class="empty-i">₦</div><h3>No Transactions</h3><p>Add your first income or expense above.</p></div>`:
+      trans.map(t=>`<div class="fin-row">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:32px;height:32px;border-radius:8px;background:${t.type==='income'?'var(--green-l)':'var(--red-l)'};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:${t.type==='income'?'var(--green-t)':'var(--red)'}">
+            ${t.type==='income'?'+':'−'}
+          </div>
+          <div><div style="font-size:12px;font-weight:700;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.desc||t.cat}</div>
+          <div class="mono t-dim" style="font-size:10px">${fdate(t.date)} · ${t.cat}</div></div>
+        </div>
+        <span class="fin-val ${t.type==='income'?'inc':'exp'}">${t.type==='income'?'+':'-'}${cur(t.amount)}</span>
+      </div>`).join('')}
+  </div>`;
+}
+
+function submitTrans(){
+  const cat=document.getElementById('tc').value.trim();
+  const amt=+document.getElementById('ta').value;
+  if(!cat||!amt){toast('Category and amount required.','error');return;}
+  DB.addTrans({type:document.getElementById('tt').value,cat,amount:amt,desc:document.getElementById('tdesc').value.trim(),date:document.getElementById('td').value});
+  toast('Transaction saved!');renderTransactions();
+}
+
+// ──────────────────────────────────────────────
+// PRICING
+// ──────────────────────────────────────────────
+function renderPricing(){
+  document.getElementById('page-pricing').innerHTML=`
+  <div style="text-align:center;padding:4px 0 20px">
+    <div class="mono t-dim" style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Your business model</div>
+    <h2 style="font-size:20px;font-weight:800;letter-spacing:-.3px">Sell SmartFarm as a subscription</h2>
+    <p class="t-dim" style="font-size:12px;margin-top:5px">Nigeria has 300,000+ registered farms — you only need 0.1% to reach ₦36M/month</p>
+  </div>
+  <div class="plan-grid">
+    <div class="plan"><div style="font-size:9px;color:var(--text3);font-family:var(--mono);margin-bottom:4px">Small farms</div>
+      <div class="plan-name">Starter</div><div class="plan-price">₦45,000<span>/month</span></div>
+      <div class="plan-desc">Up to 200 animals · 1 farm · 5 users</div>
+      <div class="plan-feat">✅ Health monitoring</div><div class="plan-feat">✅ Feed tracking</div>
+      <div class="plan-feat">✅ SMS & email alerts</div><div class="plan-feat">✅ Vaccination scheduler</div>
+      <div class="plan-feat off">❌ Multi-farm view</div><div class="plan-feat off">❌ Financial module</div>
+    </div>
+    <div class="plan feat"><div class="plan-badge">Most popular</div>
+      <div class="plan-name">Professional</div><div class="plan-price">₦120,000<span>/month</span></div>
+      <div class="plan-desc">Up to 1,500 animals · 3 farms · 20 users</div>
+      <div class="plan-feat">✅ Everything in Starter</div><div class="plan-feat">✅ Multi-farm dashboard</div>
+      <div class="plan-feat">✅ AI health predictions</div><div class="plan-feat">✅ Financial reporting</div>
+      <div class="plan-feat">✅ IoT sensor integration</div><div class="plan-feat">✅ WhatsApp alerts</div>
+    </div>
+    <div class="plan"><div style="font-size:9px;color:var(--text3);font-family:var(--mono);margin-bottom:4px">Enterprise scale</div>
+      <div class="plan-name">Enterprise</div><div class="plan-price">₦350,000<span>/month</span></div>
+      <div class="plan-desc">Unlimited animals · Unlimited farms · Unlimited users</div>
+      <div class="plan-feat">✅ Everything in Professional</div><div class="plan-feat">✅ Custom integrations</div>
+      <div class="plan-feat">✅ Dedicated account manager</div><div class="plan-feat">✅ 99.9% SLA guarantee</div>
+      <div class="plan-feat">✅ White-label option</div><div class="plan-feat">✅ On-site training</div>
+    </div>
+  </div>
+  <div class="panel" style="margin-top:14px">
+    <div class="ph"><span class="ph-t">Your Go-To-Market Roadmap</span></div>
+    <div class="rm-list">
+      <div class="rm-step"><div class="rm-num">1</div><div><div class="rm-title">Pilot — months 1–3</div><div class="rm-desc">Give one small farm free access. Collect real before/after data. Build a case study with hard numbers.</div></div></div>
+      <div class="rm-step"><div class="rm-num">2</div><div><div class="rm-title">ROI story — month 4</div><div class="rm-desc">Show large farms: "SmartFarm saved ₦800k/month in feed waste, reduced vet bills 30%, zero mortality." Numbers open doors that pitches can't.</div></div></div>
+      <div class="rm-step"><div class="rm-num">3</div><div><div class="rm-title">Hardware bundle — month 5</div><div class="rm-desc">Partner with an IoT sensor supplier. Sell hardware + software as one package — farms don't need to source sensors separately.</div></div></div>
+      <div class="rm-step"><div class="rm-num">4</div><div><div class="rm-title">Scale — month 6+</div><div class="rm-desc">Target Chi Farms, Zartech, Amo Farms. 300 Professional customers × ₦120,000 = ₦36M/month revenue.</div></div></div>
+    </div>
+  </div>`;
+}
+
+// ──────────────────────────────────────────────
+// SETTINGS
+// ──────────────────────────────────────────────
+function renderSettings(){
+  const s=DB.session();
+  document.getElementById('page-settings').innerHTML=`
+  <div style="margin-bottom:16px"><h2 style="font-size:18px;font-weight:800">Settings</h2></div>
+  <div class="g2b">
+    <div>
+      <div class="panel">
+        <div class="ph"><span class="ph-t">Farm Profile</span></div>
+        <div class="s-row"><div><div class="s-key">Organisation</div><div class="s-desc">${s?.farm||'My Farm'}</div></div><button class="btn sm">Edit</button></div>
+        <div class="s-row"><div><div class="s-key">Owner</div><div class="s-desc">${s?.name||'—'}</div></div><button class="btn sm">Edit</button></div>
+        <div class="s-row"><div><div class="s-key">Email</div><div class="s-desc">${s?.email||'—'}</div></div></div>
+        <div class="s-row"><div><div class="s-key">Role</div><div class="s-desc" style="text-transform:capitalize">${s?.role||'farmer'}</div></div></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="ph-t">Alerts & Notifications</span></div>
+        <div class="s-row"><div><div class="s-key">Health Alerts</div><div class="s-desc">Notify on vitals breach</div></div><label class="sw"><input type="checkbox" checked><span class="sw-sl"></span></label></div>
+        <div class="s-row"><div><div class="s-key">Low Feed Alerts</div><div class="s-desc">Below 25% threshold</div></div><label class="sw"><input type="checkbox" checked><span class="sw-sl"></span></label></div>
+        <div class="s-row"><div><div class="s-key">Vaccination Reminders</div><div class="s-desc">3-day advance notice</div></div><label class="sw"><input type="checkbox" checked><span class="sw-sl"></span></label></div>
+        <div class="s-row"><div><div class="s-key">SMS to farm owner</div><div class="s-desc">Critical alerts only</div></div><label class="sw"><input type="checkbox" checked><span class="sw-sl"></span></label></div>
+        <div class="s-row"><div><div class="s-key">Daily email report</div><div class="s-desc">Sent at 20:00 daily</div></div><label class="sw"><input type="checkbox"><span class="sw-sl"></span></label></div>
+      </div>
+    </div>
+    <div>
+      <div class="panel">
+        <div class="ph"><span class="ph-t">Automation</span></div>
+        <div class="s-row"><div><div class="s-key">Auto Feeding Schedule</div><div class="s-desc">Dispense at set times</div></div><label class="sw"><input type="checkbox" checked><span class="sw-sl"></span></label></div>
+        <div class="s-row"><div><div class="s-key">Auto Water Refill</div><div class="s-desc">Refill when below 30%</div></div><label class="sw"><input type="checkbox" checked><span class="sw-sl"></span></label></div>
+        <div class="s-row"><div><div class="s-key">AI Disease Detection</div><div class="s-desc">Pattern-based early warning</div></div><label class="sw"><input type="checkbox" checked><span class="sw-sl"></span></label></div>
+        <div class="s-row"><div><div class="s-key">Weather Adjustments</div><div class="s-desc">Modify care from forecast</div></div><label class="sw"><input type="checkbox"><span class="sw-sl"></span></label></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="ph-t">Data Management</span></div>
+        <div class="s-row"><div><div class="s-key">Animals</div><div class="s-desc">${DB.animals().length} records</div></div></div>
+        <div class="s-row"><div><div class="s-key">Daily Logs</div><div class="s-desc">${DB.get('logs').length} records</div></div></div>
+        <div class="s-row"><div><div class="s-key">Health Records</div><div class="s-desc">${DB.get('hrecs').length} records</div></div></div>
+        <div class="s-row"><div><div class="s-key">Transactions</div><div class="s-desc">${DB.trans().length} records</div></div></div>
+        <div class="s-row"><div><div class="s-key">Clear All Data</div><div class="s-desc">⚠ This will reset the app</div></div>
+          <button class="btn d sm" onclick="if(confirm('Delete ALL data? This cannot be undone.')){localStorage.clear();location.reload();}">Reset</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ──────────────────────────────────────────────
+// APP INIT
+// ──────────────────────────────────────────────
+DB.seed();
+
+function updateBadges(){
+  const sick=DB.animals().filter(a=>a.status==='sick').length;
+  const b1=document.getElementById('sick-badge');
+  const b2=document.getElementById('sick-badge2');
+  if(b1){b1.style.display=sick>0?'':'none';b1.textContent=sick;}
+  if(b2){b2.style.display=sick>0?'':'none';b2.textContent=sick;}
+}
+
+function updateSidebarInfo(){
+  const s=DB.session();if(!s)return;
+  const el=(id)=>document.getElementById(id);
+  if(el('sb-farm-name'))el('sb-farm-name').textContent=s.farm||'My Farm';
+  if(el('sb-farm-loc'))el('sb-farm-loc').textContent=s.name+' · '+s.role;
+  if(el('sb-uname'))el('sb-uname').textContent=s.name;
+  if(el('sb-role'))el('sb-role').textContent=s.role;
+  if(el('sb-av'))el('sb-av').textContent=s.name[0].toUpperCase();
+  if(el('tb-av'))el('tb-av').textContent=s.name[0].toUpperCase();
+  updateBadges();
+}
+
+function showApp(){
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('reg-screen').style.display='none';
+  document.getElementById('app').className='visible';
+  updateSidebarInfo();
+  go('dashboard');
+}
+
+function showLogin(){
+  document.getElementById('reg-screen').style.display='none';
+  document.getElementById('auth-screen').style.display='flex';
+}
+
+function showRegister(){
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('reg-screen').style.display='flex';
+}
+
+function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pwd=document.getElementById('login-pwd').value;
+  const errEl=document.getElementById('login-err');errEl.style.display='none';
+  if(!email||!pwd){errEl.innerHTML='⚠ Please fill in all fields.';errEl.style.display='flex';return;}
+  const r=DB.login(email,pwd);
+  if(r.ok)showApp();
+  else{errEl.innerHTML='⚠ '+r.msg;errEl.style.display='flex';}
+}
+
+function doRegister(){
+  const name=document.getElementById('reg-name').value.trim();
+  const email=document.getElementById('reg-email').value.trim();
+  const farm=document.getElementById('reg-farm').value.trim();
+  const pwd=document.getElementById('reg-pwd').value;
+  const pwd2=document.getElementById('reg-pwd2').value;
+  const errEl=document.getElementById('reg-err');errEl.style.display='none';
+  if(!name||!email||!pwd){errEl.innerHTML='⚠ Please fill in all required fields.';errEl.style.display='flex';return;}
+  if(pwd!==pwd2){errEl.innerHTML='⚠ Passwords do not match.';errEl.style.display='flex';return;}
+  if(pwd.length<6){errEl.innerHTML='⚠ Password must be at least 6 characters.';errEl.style.display='flex';return;}
+  const r=DB.register(name,email,pwd,farm);
+  if(r.ok){DB.login(email,pwd);showApp();}
+  else{errEl.innerHTML='⚠ '+r.msg;errEl.style.display='flex';}
+}
+
+function doLogout(){DB.logout();document.getElementById('app').className='';showLogin();}
+
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('show');
+}
+function closeSidebar(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+}
+
+// Clock
+setInterval(()=>{const el=document.getElementById('clock');if(el)el.textContent=new Date().toLocaleTimeString('en-NG',{hour:'2-digit',minute:'2-digit'});},1000);
+
+// Auto-login if session exists
+if(DB.session())showApp();
+
+// Enter key on login
+document.addEventListener('keydown',e=>{if(e.key==='Enter'){const as=document.getElementById('auth-screen');if(as&&as.style.display!=='none')doLogin();}});
+</script>
+</body>
+</html>
