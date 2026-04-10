@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crops — SmartFarm</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body class="shell">
+  <div id="app-shell"></div>
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/nav.js"></script>
+  <script>
+  SF.requireLogin();
+  buildNav('Crops', 'crops');
+
+  const pc = document.getElementById('page-content');
+
+  function render() {
+    const plots = SF.getPlots();
+    const totalHa  = plots.reduce((s,p)=>s+(+p.sizeHectare||0),0);
+
+    const allInputs   = SF.get('cropInputs');
+    const allHarvests = SF.get('harvests');
+
+    const totalCost = plots.reduce((s,p)=>{
+      return s + allInputs.filter(i=>i.plotId===p.id).reduce((ss,i)=>ss+(+i.cost||0),0);
+    },0);
+    const totalRev = plots.reduce((s,p)=>{
+      return s + allHarvests.filter(h=>h.plotId===p.id).reduce((ss,h)=>ss+(+h.totalRevenue||0),0);
+    },0);
+
+    pc.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+      <div>
+        <h2 style="font-size:22px;font-weight:800">🌾 Crop Plots</h2>
+        <p style="color:var(--gray-400);font-size:13px;margin-top:2px">${plots.length} plots registered</p>
+      </div>
+      <a href="crops-add.html" class="btn btn-primary">✚ Add Plot</a>
+    </div>
+
+    <div class="stat-grid" style="margin-bottom:20px">
+      <div class="stat-card" style="text-align:center">
+        <div class="stat-value">${plots.length}</div><div class="stat-label">Total Plots</div>
+      </div>
+      <div class="stat-card" style="text-align:center">
+        <div class="stat-value">${totalHa.toFixed(1)}</div><div class="stat-label">Hectares</div>
+      </div>
+      <div class="stat-card" style="text-align:center">
+        <div class="stat-value" style="font-size:16px;color:var(--green-600)">${SF.currency(totalRev)}</div><div class="stat-label">Revenue</div>
+      </div>
+      <div class="stat-card" style="text-align:center">
+        <div class="stat-value" style="font-size:16px;color:${(totalRev-totalCost)>=0?'var(--green-600)':'var(--red-600)'}">${SF.currency(totalRev-totalCost)}</div>
+        <div class="stat-label">Net Profit</div>
+      </div>
+    </div>
+
+    ${plots.length===0?`
+    <div class="empty-state">
+      <div class="empty-icon">🌱</div>
+      <h3>No Crop Plots Yet</h3>
+      <p>Register your farm plots to start tracking crops.</p>
+      <a href="crops-add.html" class="btn btn-primary">✚ Add First Plot</a>
+    </div>` : `
+    <div class="item-grid">
+    ${plots.map(p=>{
+      const pinputs  = allInputs.filter(i=>i.plotId===p.id).reduce((s,i)=>s+(+i.cost||0),0);
+      const prev     = allHarvests.filter(h=>h.plotId===p.id).reduce((s,h)=>s+(+h.totalRevenue||0),0);
+      const profit   = prev - pinputs;
+      const prog     = SF.progress(p.plantingDate, p.expectedHarvest);
+      const sc       = {planted:'badge-green',growing:'badge-blue',harvested:'badge-gray',preparing:'badge-yellow',fallow:'badge-gray'}[p.status]||'badge-gray';
+      return `
+      <div class="item-card">
+        <div class="item-card-head">
+          <div class="item-icon">🌾</div>
+          <div style="flex:1;min-width:0">
+            <div class="item-name">${p.name}</div>
+            <div class="item-sub">${p.cropType} · ${p.sizeHectare}ha</div>
+          </div>
+          <span class="badge ${sc}">${p.status}</span>
+        </div>
+        <div class="item-stats">
+          <div class="item-stat">
+            <div class="s-val" style="color:var(--red-600);font-size:11px">${SF.currency(pinputs)}</div>
+            <div class="s-lbl">Inputs</div>
+          </div>
+          <div class="item-stat">
+            <div class="s-val" style="color:var(--green-600);font-size:11px">${SF.currency(prev)}</div>
+            <div class="s-lbl">Revenue</div>
+          </div>
+          <div class="item-stat">
+            <div class="s-val" style="font-size:11px;color:${profit>=0?'var(--green-600)':'var(--red-600)'}">${SF.currency(profit)}</div>
+            <div class="s-lbl">Profit</div>
+          </div>
+        </div>
+        ${p.plantingDate&&p.expectedHarvest?`
+        <div class="progress-wrap">
+          <div class="progress-labels"><span>${SF.fmtDate(p.plantingDate)}</span><span>${prog}%</span></div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${prog}%"></div></div>
+        </div>`:''}
+        <div class="item-actions">
+          <a href="crops-view.html?id=${p.id}" class="btn btn-primary btn-sm" style="flex:1;justify-content:center">👁 View Details</a>
+        </div>
+      </div>`;
+    }).join('')}
+    </div>`}
+    `;
+  }
+
+  render();
+  </script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Add Plot — SmartFarm</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body class="shell">
+  <div id="app-shell"></div>
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/nav.js"></script>
+  <script>
+  SF.requireLogin();
+  buildNav('Add Plot', 'crops');
+
+  document.getElementById('page-content').innerHTML = `
+  <div class="breadcrumb">
+    <a href="dashboard.html">Dashboard</a> <span>›</span>
+    <a href="crops.html">Crops</a> <span>›</span>
+    <span>Add Plot</span>
+  </div>
+
+  <div class="card" style="max-width:620px;margin:0 auto">
+    <div class="card-header"><h3>🌱 Register New Plot</h3></div>
+    <div class="card-body">
+      <div id="err" class="alert alert-error" style="display:none"></div>
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">Plot Name <span class="req">*</span></label>
+          <input type="text" id="name" class="form-input" placeholder="e.g. North Field A"></div>
+        <div class="form-group"><label class="form-label">Crop Type <span class="req">*</span></label>
+          <input type="text" id="cropType" class="form-input" placeholder="e.g. Maize, Rice, Cassava"></div>
+        <div class="form-group"><label class="form-label">Size (Hectares) <span class="req">*</span></label>
+          <input type="number" id="sizeHectare" class="form-input" placeholder="e.g. 2.5" step="0.01" min="0.01"></div>
+        <div class="form-group"><label class="form-label">Status</label>
+          <select id="status" class="form-select">
+            <option value="preparing">🔄 Preparing</option>
+            <option value="planted" selected>🌱 Planted</option>
+            <option value="growing">🌿 Growing</option>
+            <option value="harvested">🌾 Harvested</option>
+            <option value="fallow">⬜ Fallow</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Planting Date</label>
+          <input type="date" id="plantingDate" class="form-input"></div>
+        <div class="form-group"><label class="form-label">Expected Harvest Date</label>
+          <input type="date" id="expectedHarvest" class="form-input"></div>
+        <div class="form-group"><label class="form-label">Soil Type</label>
+          <input type="text" id="soilType" class="form-input" placeholder="e.g. Loamy, Sandy"></div>
+        <div class="form-group"><label class="form-label">Irrigation Type</label>
+          <input type="text" id="irrigationType" class="form-input" placeholder="e.g. Rain-fed, Drip"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Notes</label>
+        <textarea id="notes" class="form-textarea" placeholder="Additional details…"></textarea></div>
+      <div class="form-row">
+        <button onclick="savePlot()" class="btn btn-primary">💾 Save Plot</button>
+        <a href="crops.html" class="btn btn-secondary">Cancel</a>
+      </div>
+    </div>
+  </div>
+  `;
+
+  function savePlot() {
+    const name = document.getElementById('name').value.trim();
+    const crop = document.getElementById('cropType').value.trim();
+    const size = +document.getElementById('sizeHectare').value;
+    const errEl = document.getElementById('err'); errEl.style.display='none';
+
+    if (!name) { errEl.textContent='Plot name is required.'; errEl.style.display='flex'; return; }
+    if (!crop) { errEl.textContent='Crop type is required.'; errEl.style.display='flex'; return; }
+    if (size<=0){ errEl.textContent='Size must be greater than 0.'; errEl.style.display='flex'; return; }
+
+    const id = SF.savePlot({
+      name, cropType:crop, sizeHectare:size,
+      status:         document.getElementById('status').value,
+      plantingDate:   document.getElementById('plantingDate').value,
+      expectedHarvest:document.getElementById('expectedHarvest').value,
+      soilType:       document.getElementById('soilType').value.trim(),
+      irrigationType: document.getElementById('irrigationType').value.trim(),
+      notes:          document.getElementById('notes').value.trim(),
+    });
+    SF.toast('Plot saved!');
+    window.location.href = 'crops-view.html?id=' + id;
+  }
+  </script>
+</body>
+</html>

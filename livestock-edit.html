@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Animal — SmartFarm</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body class="shell">
+  <div id="app-shell"></div>
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/nav.js"></script>
+  <script>
+  SF.requireLogin();
+  const id = +SF.param('id');
+  const a  = SF.getAnimal(id);
+  if (!a) { window.location.href='livestock.html'; }
+
+  buildNav('Edit Animal', 'livestock');
+
+  document.getElementById('page-content').innerHTML = `
+  <div class="breadcrumb">
+    <a href="dashboard.html">Dashboard</a> <span>›</span>
+    <a href="livestock.html">Livestock</a> <span>›</span>
+    <a href="livestock-view.html?id=${a.id}">${a.name||a.tagId}</a> <span>›</span>
+    <span>Edit</span>
+  </div>
+
+  <div class="card" style="max-width:700px;margin:0 auto">
+    <div class="card-header">
+      <h3>✏ Edit Animal — <span style="font-family:monospace;font-size:13px;color:var(--gray-400)">${a.tagId}</span></h3>
+    </div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">Name</label>
+          <input type="text" id="name" class="form-input" value="${a.name||''}"></div>
+        <div class="form-group"><label class="form-label">Breed</label>
+          <input type="text" id="breed" class="form-input" value="${a.breed||''}"></div>
+        <div class="form-group"><label class="form-label">Date of Birth</label>
+          <input type="date" id="dob" class="form-input" value="${a.dob||''}"></div>
+        <div class="form-group"><label class="form-label">Weight (kg)</label>
+          <input type="number" id="weight" class="form-input" value="${a.weight||0}" step="0.01"></div>
+        <div class="form-group"><label class="form-label">Color</label>
+          <input type="text" id="color" class="form-input" value="${a.color||''}"></div>
+        <div class="form-group"><label class="form-label">Source</label>
+          <input type="text" id="source" class="form-input" value="${a.source||''}"></div>
+        <div class="form-group"><label class="form-label">Purchase Price (₦)</label>
+          <input type="number" id="purchasePrice" class="form-input" value="${a.purchasePrice||0}" step="0.01"></div>
+        <div class="form-group"><label class="form-label">Current Value (₦)</label>
+          <input type="number" id="currentValue" class="form-input" value="${a.currentValue||0}" step="0.01"></div>
+        <div class="form-group"><label class="form-label">Health Status</label>
+          <select id="healthStatus" class="form-select">
+            ${['healthy','sick','recovering','deceased'].map(s=>`<option value="${s}" ${a.healthStatus===s?'selected':''}>${s}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Reproductive Status</label>
+          <input type="text" id="reproductiveStatus" class="form-input" value="${a.reproductiveStatus||''}"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Notes</label>
+        <textarea id="notes" class="form-textarea">${a.notes||''}</textarea></div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--gray-700);margin-bottom:16px;cursor:pointer">
+        <input type="checkbox" id="isActive" ${a.isActive!==false?'checked':''} style="width:16px;height:16px">
+        Animal is Active (uncheck = sold or removed)
+      </label>
+      <div class="form-row">
+        <button onclick="saveEdits()" class="btn btn-primary">💾 Save Changes</button>
+        <a href="livestock-view.html?id=${a.id}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </div>
+  </div>
+  `;
+
+  function saveEdits() {
+    Object.assign(a, {
+      name:               document.getElementById('name').value.trim(),
+      breed:              document.getElementById('breed').value.trim(),
+      dob:                document.getElementById('dob').value,
+      weight:             +document.getElementById('weight').value||0,
+      color:              document.getElementById('color').value.trim(),
+      source:             document.getElementById('source').value.trim(),
+      purchasePrice:      +document.getElementById('purchasePrice').value||0,
+      currentValue:       +document.getElementById('currentValue').value||0,
+      healthStatus:       document.getElementById('healthStatus').value,
+      reproductiveStatus: document.getElementById('reproductiveStatus').value.trim(),
+      notes:              document.getElementById('notes').value.trim(),
+      isActive:           document.getElementById('isActive').checked,
+    });
+    SF.saveAnimal(a);
+    SF.toast('Animal updated!');
+    window.location.href = 'livestock-view.html?id=' + a.id;
+  }
+  </script>
+</body>
+</html>

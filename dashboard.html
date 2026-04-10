@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — SmartFarm</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="shell">
+  <div id="app-shell"></div>
+
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/nav.js"></script>
+  <script>
+  SF.requireLogin();
+  buildNav('Dashboard', 'dashboard');
+
+  const uid = SF.session().id;
+  const animals  = SF.getAnimals();
+  const plots    = SF.getPlots();
+  const trans    = SF.getTransactions();
+  const healthDue = SF.getUpcomingHealth();
+
+  const totalIncome  = trans.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const totalExpense = trans.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const netProfit    = totalIncome - totalExpense;
+  const totalValue   = animals.reduce((s,a)=>s+(a.currentValue||0),0);
+  const sickCount    = animals.filter(a=>a.healthStatus==='sick').length;
+  const totalHa      = plots.reduce((s,p)=>s+(+p.sizeHectare||0),0);
+
+  const pc = document.getElementById('page-content');
+
+  pc.innerHTML = `
+  <!-- Stat Cards -->
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-icon">🐄</div>
+      <div class="stat-value">${animals.length}</div>
+      <div class="stat-label">Total Animals</div>
+      <div class="stat-sub">${sickCount} sick / needs care</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🌾</div>
+      <div class="stat-value">${plots.length}</div>
+      <div class="stat-label">Crop Plots</div>
+      <div class="stat-sub">${totalHa.toFixed(1)} hectares total</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">💰</div>
+      <div class="stat-value" style="color:${netProfit>=0?'var(--green-600)':'var(--red-600)'}">${SF.currency(netProfit)}</div>
+      <div class="stat-label">Net Profit</div>
+      <div class="stat-sub">Income − Expenses</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">📊</div>
+      <div class="stat-value">${SF.currency(totalValue)}</div>
+      <div class="stat-label">Livestock Value</div>
+      <div class="stat-sub">Current market value</div>
+    </div>
+  </div>
+
+  <!-- Charts + Quick Actions -->
+  <div style="display:grid;grid-template-columns:1fr 260px;gap:16px;margin-bottom:24px">
+    <div class="card">
+      <div class="card-header"><h3>📅 Financial Overview (6 Months)</h3></div>
+      <div class="card-body"><canvas id="finChart" height="200"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>⚡ Quick Actions</h3></div>
+      <div class="card-body quick-actions" style="padding:12px">
+        <a href="livestock-add.html" class="quick-action">
+          <span class="qa-icon">🐄</span>
+          <div><div class="qa-title">Add Animal</div><div class="qa-sub">Register livestock</div></div>
+        </a>
+        <a href="crops-add.html" class="quick-action">
+          <span class="qa-icon">🌾</span>
+          <div><div class="qa-title">Add Plot</div><div class="qa-sub">Register crop plot</div></div>
+        </a>
+        <a href="transactions.html" class="quick-action">
+          <span class="qa-icon">💳</span>
+          <div><div class="qa-title">Add Transaction</div><div class="qa-sub">Log income/expense</div></div>
+        </a>
+        <a href="executive.html" class="quick-action">
+          <span class="qa-icon">📈</span>
+          <div><div class="qa-title">Executive View</div><div class="qa-sub">Full analytics</div></div>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Animals + Health Alerts -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+    <div class="card">
+      <div class="card-header">
+        <h3>🐄 Recent Animals</h3>
+        <a href="livestock.html" style="font-size:12px;color:var(--green-600);font-weight:700;text-decoration:none">View All →</a>
+      </div>
+      <div id="recent-animals"></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>🔔 Upcoming Health Duties</h3></div>
+      <div id="health-alerts"></div>
+    </div>
+  </div>
+
+  <!-- Recent Plots -->
+  <div class="card" id="plots-section"></div>
+  `;
+
+  // Render recent animals
+  const raEl = document.getElementById('recent-animals');
+  if (!animals.length) {
+    raEl.innerHTML = '<div class="empty-state" style="padding:30px"><div class="empty-icon">🐄</div><p>No animals yet</p></div>';
+  } else {
+    raEl.innerHTML = animals.slice(0,5).map(a => `
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--gray-50)">
+        <div style="width:38px;height:38px;background:var(--green-50);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px">${SF.animalIcon(a.type)}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:13px;color:var(--gray-800)">${a.name||a.tagId}</div>
+          <div style="font-size:11px;color:var(--gray-400)">${a.tagId} · ${a.type}</div>
+        </div>
+        <span class="badge badge-${a.healthStatus==='healthy'?'green':a.healthStatus==='sick'?'red':'yellow'}">${a.healthStatus}</span>
+      </div>
+    `).join('');
+  }
+
+  // Health alerts
+  const haEl = document.getElementById('health-alerts');
+  if (!healthDue.length) {
+    haEl.innerHTML = '<div class="empty-state" style="padding:30px"><div class="empty-icon">💉</div><p>No upcoming health records</p></div>';
+  } else {
+    haEl.innerHTML = healthDue.map(h => {
+      const days = SF.daysUntil(h.nextDue);
+      const animal = SF.getAnimal(h.animalId);
+      return `
+      <div style="display:flex;align-items:start;gap:12px;padding:12px 16px;border-bottom:1px solid var(--gray-50)">
+        <div style="width:36px;height:36px;background:var(--yellow-100);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-top:2px">💉</div>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:13px">${h.vaccineName||h.recordType}</div>
+          <div style="font-size:11px;color:var(--gray-400)">${animal?.name||h.animalId}</div>
+          <div style="font-size:11px;margin-top:2px;color:${days<=3?'var(--red-600)':'var(--gray-400)'}">
+            Due: ${SF.fmtDate(h.nextDue)} (${days===0?'Today!':days+' days'})
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Recent plots
+  const psEl = document.getElementById('plots-section');
+  if (!plots.length) {
+    psEl.innerHTML = '';
+  } else {
+    psEl.innerHTML = `
+    <div class="card-header">
+      <h3>🌱 Crop Plots Status</h3>
+      <a href="crops.html" style="font-size:12px;color:var(--green-600);font-weight:700;text-decoration:none">View All →</a>
+    </div>
+    ${plots.slice(0,4).map(p=>{
+      const prog = SF.progress(p.plantingDate, p.expectedHarvest);
+      const sc = {planted:'badge-green',growing:'badge-blue',harvested:'badge-gray',preparing:'badge-yellow',fallow:'badge-gray'}[p.status]||'badge-gray';
+      return `<div style="padding:14px 16px;border-bottom:1px solid var(--gray-50)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div>
+            <span style="font-weight:700;font-size:13px">${p.name}</span>
+            <span style="font-size:12px;color:var(--gray-400);margin-left:8px">${p.cropType} · ${p.sizeHectare}ha</span>
+          </div>
+          <span class="badge ${sc}">${p.status}</span>
+        </div>
+        ${p.plantingDate&&p.expectedHarvest?`
+        <div class="progress-bar"><div class="progress-fill" style="width:${prog}%"></div></div>
+        <div class="progress-labels"><span>${SF.fmtDate(p.plantingDate)}</span><span>${prog}% · ${SF.fmtDate(p.expectedHarvest)}</span></div>
+        `:''}
+      </div>`;
+    }).join('')}`;
+  }
+
+  // Finance chart
+  const months = [], inc = [], exp = [];
+  for (let i=5;i>=0;i--) {
+    const d = new Date(); d.setMonth(d.getMonth()-i);
+    const ym = d.toISOString().slice(0,7);
+    months.push(d.toLocaleString('default',{month:'short'}));
+    inc.push(trans.filter(t=>t.type==='income'&&t.date?.startsWith(ym)).reduce((s,t)=>s+t.amount,0));
+    exp.push(trans.filter(t=>t.type==='expense'&&t.date?.startsWith(ym)).reduce((s,t)=>s+t.amount,0));
+  }
+  new Chart(document.getElementById('finChart').getContext('2d'),{
+    type:'bar',
+    data:{ labels:months, datasets:[
+      {label:'Income',data:inc,backgroundColor:'rgba(22,163,74,.7)',borderRadius:5},
+      {label:'Expense',data:exp,backgroundColor:'rgba(239,68,68,.6)',borderRadius:5}
+    ]},
+    options:{ responsive:true, scales:{ y:{ beginAtZero:true, ticks:{callback:v=>'₦'+v.toLocaleString()} }, x:{grid:{display:false}} }, plugins:{legend:{position:'top'}} }
+  });
+  </script>
+</body>
+</html>

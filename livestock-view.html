@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Animal Profile — SmartFarm</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="shell">
+  <div id="app-shell"></div>
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/nav.js"></script>
+  <script>
+  SF.requireLogin();
+  const id = +SF.param('id');
+  const a  = SF.getAnimal(id);
+  if (!a) { window.location.href='livestock.html'; }
+
+  buildNav(a.name||a.tagId, 'livestock');
+
+  const pc = document.getElementById('page-content');
+
+  function age(dob) {
+    if (!dob) return '—';
+    const d = new Date(dob), n = new Date();
+    const yr = n.getFullYear()-d.getFullYear(), mo = n.getMonth()-d.getMonth();
+    return yr > 0 ? `${yr}yr ${mo<0?mo+12:mo}mo` : `${mo<0?mo+12:mo} months`;
+  }
+
+  function renderPage(activeTab='logs') {
+    const logs    = SF.getAnimalLogs(id).sort((a,b)=>new Date(b.logDate)-new Date(a.logDate));
+    const health  = SF.getHealthRecords(id).sort((a,b)=>new Date(b.dateGiven)-new Date(a.dateGiven));
+    const weightData  = logs.filter(l=>l.weight>0).slice().reverse();
+    const hBadge  = {healthy:'badge-green',sick:'badge-red',recovering:'badge-yellow',deceased:'badge-red'}[a.healthStatus]||'badge-gray';
+
+    pc.innerHTML = `
+    <div class="breadcrumb">
+      <a href="dashboard.html">Dashboard</a> <span>›</span>
+      <a href="livestock.html">Livestock</a> <span>›</span>
+      <span>${a.name||a.tagId}</span>
+    </div>
+
+    <div style="display:grid;grid-template-columns:260px 1fr;gap:18px;margin-bottom:20px">
+      <!-- Profile Card -->
+      <div class="card" style="padding:24px;text-align:center">
+        <div style="font-size:56px;margin-bottom:8px">${SF.animalIcon(a.type)}</div>
+        <div style="font-size:18px;font-weight:800;color:var(--gray-800)">${a.name||'Unnamed'}</div>
+        <div style="font-size:12px;color:var(--gray-400);margin-top:2px">Tag: <strong>${a.tagId}</strong></div>
+        <div style="margin:10px 0"><span class="badge ${hBadge}">${a.healthStatus}</span></div>
+
+        <!-- QR Code -->
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(location.href)}"
+          alt="QR" style="width:100px;height:100px;border-radius:10px;border:1px solid var(--gray-100);margin:8px auto;display:block">
+        <p style="font-size:10px;color:var(--gray-400)">Scan to view profile</p>
+
+        <!-- Quick Status Update -->
+        <div style="margin-top:14px">
+          <label class="form-label" style="text-align:left">Update Health</label>
+          <select id="hs-select" class="form-select" onchange="updateHealth(this.value)">
+            ${['healthy','sick','recovering','deceased'].map(s=>`<option value="${s}" ${a.healthStatus===s?'selected':''}>${s}</option>`).join('')}
+          </select>
+        </div>
+        <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
+          <a href="livestock-edit.html?id=${a.id}" class="btn btn-secondary btn-sm btn-block">✏ Edit Animal</a>
+        </div>
+      </div>
+
+      <!-- Details -->
+      <div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-header"><h3>Animal Details</h3></div>
+          <div class="card-body">
+            <div class="detail-grid">
+              ${[['Type',a.type],['Breed',a.breed||'—'],['Gender',a.gender],['Age',age(a.dob)],
+                 ['Weight',a.weight?a.weight+'kg':'—'],['Color',a.color||'—'],
+                 ['Source',a.source||'—'],['Purchase Price',SF.currency(a.purchasePrice)],
+                 ['Current Value',SF.currency(a.currentValue)],['Reproductive',a.reproductiveStatus||'—']
+                ].map(([l,v])=>`<div class="detail-item"><div class="d-label">${l}</div><div class="d-value">${v}</div></div>`).join('')}
+            </div>
+            ${a.notes?`<div style="margin-top:12px;padding:12px;background:var(--blue-100);border-radius:10px;font-size:13px;color:var(--gray-700)">${a.notes}</div>`:''}
+          </div>
+        </div>
+
+        ${weightData.length ? `
+        <div class="card">
+          <div class="card-header"><h3>⚖ Weight Progress</h3></div>
+          <div class="card-body"><canvas id="weightChart" height="120"></canvas></div>
+        </div>` : ''}
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="card">
+      <div class="tabs" style="padding:0 4px">
+        ${['logs','health','add-log','add-health'].map((t,i)=>`
+          <button class="tab-btn ${activeTab===t?'active':''}" onclick="switchTab('${t}')">${['📋 Daily Logs','💉 Health Records','➕ Add Log','🏥 Add Health'][i]}</button>
+        `).join('')}
+      </div>
+
+      <!-- Daily Logs -->
+      <div class="tab-pane ${activeTab==='logs'?'active':''}" id="tab-logs">
+        ${!logs.length ? '<div class="empty-state" style="padding:30px"><div class="empty-icon">📋</div><p>No daily logs yet. Click "Add Log" to start tracking.</p></div>' : `
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Date</th><th>Weight</th>
+              ${['cow','goat'].includes(a.type)?'<th>Milk (L)</th>':''}
+              ${a.type==='poultry'?'<th>Eggs</th>':''}
+              <th>Feed (kg)</th><th>Temp °C</th><th>Notes</th>
+            </tr></thead>
+            <tbody>
+              ${logs.map(l=>`<tr>
+                <td>${SF.fmtDate(l.logDate)}</td>
+                <td><strong>${l.weight?l.weight+'kg':'—'}</strong></td>
+                ${['cow','goat'].includes(a.type)?`<td style="color:var(--blue-600)">${l.milkYield>0?l.milkYield+'L':'—'}</td>`:''}
+                ${a.type==='poultry'?`<td style="color:var(--yellow-700)">${l.eggCount>0?l.eggCount:'—'}</td>`:''}
+                <td>${l.feedIntake>0?l.feedIntake+'kg':'—'}</td>
+                <td>${l.temperature>0?l.temperature+'°C':'—'}</td>
+                <td style="color:var(--gray-400);max-width:150px;overflow:hidden;text-overflow:ellipsis">${l.notes||'—'}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`}
+      </div>
+
+      <!-- Health Records -->
+      <div class="tab-pane ${activeTab==='health'?'active':''}" id="tab-health">
+        ${!health.length ? '<div class="empty-state" style="padding:30px"><div class="empty-icon">💉</div><p>No health records yet.</p></div>' : `
+        <div style="display:flex;flex-direction:column;gap:10px">
+          ${health.map(h=>`
+          <div style="display:flex;gap:12px;padding:12px;background:var(--gray-50);border-radius:12px;align-items:start">
+            <div style="width:36px;height:36px;background:var(--blue-100);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;margin-top:2px">💉</div>
+            <div style="flex:1">
+              <div style="font-weight:700;font-size:13px">${h.vaccineName||h.recordType}</div>
+              <div style="font-size:11px;color:var(--gray-400)">
+                ${SF.fmtDate(h.dateGiven)}${h.nextDue?' · Next: <strong>'+SF.fmtDate(h.nextDue)+'</strong>':''}
+                ${h.vetName?' · '+h.vetName:''}
+              </div>
+              ${h.cost>0?`<div style="font-size:11px;color:var(--gray-400)">Cost: ${SF.currency(h.cost)}</div>`:''}
+              ${h.notes?`<div style="font-size:12px;color:var(--gray-400);margin-top:4px">${h.notes}</div>`:''}
+            </div>
+            <span class="badge badge-blue">${h.recordType}</span>
+          </div>`).join('')}
+        </div>`}
+      </div>
+
+      <!-- Add Log Form -->
+      <div class="tab-pane ${activeTab==='add-log'?'active':''}" id="tab-add-log">
+        <div style="max-width:500px">
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">Date</label><input type="date" id="logDate" class="form-input" value="${new Date().toISOString().slice(0,10)}"></div>
+            <div class="form-group"><label class="form-label">Weight (kg)</label><input type="number" id="logWeight" class="form-input" step="0.01" placeholder="0.00"></div>
+            ${['cow','goat'].includes(a.type)?'<div class="form-group"><label class="form-label">Milk Yield (L)</label><input type="number" id="logMilk" class="form-input" step="0.01" placeholder="0.00"></div>':''}
+            ${a.type==='poultry'?'<div class="form-group"><label class="form-label">Egg Count</label><input type="number" id="logEggs" class="form-input" placeholder="0"></div>':''}
+            <div class="form-group"><label class="form-label">Feed Intake (kg)</label><input type="number" id="logFeed" class="form-input" step="0.01" placeholder="0.00"></div>
+            <div class="form-group"><label class="form-label">Temperature (°C)</label><input type="number" id="logTemp" class="form-input" step="0.1" placeholder="38.5"></div>
+          </div>
+          <div class="form-group"><label class="form-label">Notes</label><textarea id="logNotes" class="form-textarea" placeholder="Today's observations…"></textarea></div>
+          <button onclick="saveLog()" class="btn btn-primary">💾 Save Log</button>
+        </div>
+      </div>
+
+      <!-- Add Health Record Form -->
+      <div class="tab-pane ${activeTab==='add-health'?'active':''}" id="tab-add-health">
+        <div style="max-width:500px">
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">Record Type</label>
+              <select id="hType" class="form-select">
+                <option value="vaccination">💉 Vaccination</option>
+                <option value="treatment">💊 Treatment</option>
+                <option value="checkup">🩺 Checkup</option>
+                <option value="deworming">🪱 Deworming</option>
+              </select>
+            </div>
+            <div class="form-group"><label class="form-label">Vaccine / Medicine</label><input type="text" id="hName" class="form-input" placeholder="e.g. FMD Vaccine"></div>
+            <div class="form-group"><label class="form-label">Date Given</label><input type="date" id="hDate" class="form-input" value="${new Date().toISOString().slice(0,10)}"></div>
+            <div class="form-group"><label class="form-label">Next Due Date</label><input type="date" id="hNext" class="form-input"></div>
+            <div class="form-group"><label class="form-label">Vet Name</label><input type="text" id="hVet" class="form-input" placeholder="Dr. Adeola"></div>
+            <div class="form-group"><label class="form-label">Cost (₦)</label><input type="number" id="hCost" class="form-input" value="0" step="0.01"></div>
+          </div>
+          <div class="form-group"><label class="form-label">Notes</label><textarea id="hNotes" class="form-textarea"></textarea></div>
+          <button onclick="saveHealth()" class="btn btn-primary">💾 Save Record</button>
+        </div>
+      </div>
+    </div>
+    `;
+
+    // Weight chart
+    if (weightData.length > 1) {
+      new Chart(document.getElementById('weightChart').getContext('2d'), {
+        type:'line',
+        data:{
+          labels: weightData.map(l=>SF.fmtDate(l.logDate)),
+          datasets:[{
+            label:'Weight (kg)', data: weightData.map(l=>l.weight),
+            borderColor:'#16a34a', backgroundColor:'rgba(22,163,74,.1)',
+            borderWidth:2, fill:true, tension:.4, pointRadius:4
+          }]
+        },
+        options:{ responsive:true, scales:{ y:{beginAtZero:false} }, plugins:{legend:{display:false}} }
+      });
+    }
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    document.getElementById('tab-'+tab).classList.add('active');
+  }
+
+  function updateHealth(val) {
+    a.healthStatus = val;
+    SF.saveAnimal(a);
+    SF.toast('Health status updated!');
+  }
+
+  function saveLog() {
+    SF.addAnimalLog({
+      animalId:    id,
+      logDate:     document.getElementById('logDate').value,
+      weight:      +document.getElementById('logWeight').value||0,
+      milkYield:   +document.getElementById('logMilk')?.value||0,
+      eggCount:    +document.getElementById('logEggs')?.value||0,
+      feedIntake:  +document.getElementById('logFeed').value||0,
+      temperature: +document.getElementById('logTemp').value||0,
+      notes:       document.getElementById('logNotes').value.trim(),
+    });
+    SF.toast('Log saved!');
+    renderPage('logs');
+  }
+
+  function saveHealth() {
+    SF.addHealthRecord({
+      animalId:    id,
+      recordType:  document.getElementById('hType').value,
+      vaccineName: document.getElementById('hName').value.trim(),
+      vetName:     document.getElementById('hVet').value.trim(),
+      dateGiven:   document.getElementById('hDate').value,
+      nextDue:     document.getElementById('hNext').value||null,
+      cost:        +document.getElementById('hCost').value||0,
+      notes:       document.getElementById('hNotes').value.trim(),
+    });
+    SF.toast('Health record saved!');
+    renderPage('health');
+  }
+
+  renderPage();
+  </script>
+</body>
+</html>

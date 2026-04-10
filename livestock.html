@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Livestock — SmartFarm</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body class="shell">
+  <div id="app-shell"></div>
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/nav.js"></script>
+  <script>
+  SF.requireLogin();
+  buildNav('Livestock', 'livestock');
+
+  const pc = document.getElementById('page-content');
+
+  function render(filter='', typeF='', healthF='') {
+    let animals = SF.getAnimals().filter(a => a.isActive !== false);
+    if (typeF)   animals = animals.filter(a => a.type === typeF);
+    if (healthF) animals = animals.filter(a => a.healthStatus === healthF);
+    if (filter)  animals = animals.filter(a =>
+      (a.name||'').toLowerCase().includes(filter) ||
+      a.tagId.toLowerCase().includes(filter) ||
+      (a.breed||'').toLowerCase().includes(filter));
+
+    const totalVal = animals.reduce((s,a)=>s+(+a.currentValue||0),0);
+    const healthy  = animals.filter(a=>a.healthStatus==='healthy').length;
+    const sick     = animals.filter(a=>a.healthStatus==='sick').length;
+
+    pc.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+      <div>
+        <h2 style="font-size:22px;font-weight:800">🐄 Livestock</h2>
+        <p style="color:var(--gray-400);font-size:13px;margin-top:2px">${animals.length} animals</p>
+      </div>
+      <a href="livestock-add.html" class="btn btn-primary">✚ Add Animal</a>
+    </div>
+
+    <div class="stat-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+      <div class="stat-card text-center" style="text-align:center">
+        <div class="stat-value">${SF.getAnimals().length}</div><div class="stat-label">Total</div>
+      </div>
+      <div class="stat-card" style="text-align:center">
+        <div class="stat-value" style="color:var(--green-600)">${healthy}</div><div class="stat-label">Healthy</div>
+      </div>
+      <div class="stat-card" style="text-align:center">
+        <div class="stat-value" style="color:var(--red-600)">${sick}</div><div class="stat-label">Sick</div>
+      </div>
+      <div class="stat-card" style="text-align:center">
+        <div class="stat-value" style="font-size:16px">${SF.currency(totalVal)}</div><div class="stat-label">Value</div>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-body" style="padding:14px 16px">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+          <div style="flex:1;min-width:180px">
+            <label class="form-label">Search</label>
+            <input type="text" id="search" class="form-input" placeholder="Tag, name, breed…" value="${filter}" oninput="applyFilters()">
+          </div>
+          <div style="width:140px">
+            <label class="form-label">Type</label>
+            <select id="typeF" class="form-select" onchange="applyFilters()">
+              <option value="">All Types</option>
+              ${['cow','goat','poultry','sheep','pig','other'].map(t=>`<option value="${t}" ${typeF===t?'selected':''}>${SF.animalIcon(t)} ${t}</option>`).join('')}
+            </select>
+          </div>
+          <div style="width:140px">
+            <label class="form-label">Health</label>
+            <select id="healthF" class="form-select" onchange="applyFilters()">
+              <option value="">All</option>
+              <option value="healthy"    ${healthF==='healthy'?'selected':''}>✅ Healthy</option>
+              <option value="sick"       ${healthF==='sick'?'selected':''}>🤒 Sick</option>
+              <option value="recovering" ${healthF==='recovering'?'selected':''}>💊 Recovering</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    ${animals.length===0 ? `
+    <div class="empty-state">
+      <div class="empty-icon">🐄</div>
+      <h3>No Animals Found</h3>
+      <p>Start by adding your first animal to the system.</p>
+      <a href="livestock-add.html" class="btn btn-primary">✚ Add First Animal</a>
+    </div>` : `
+    <div class="item-grid">
+      ${animals.map(a=>`
+      <div class="item-card">
+        <div class="item-card-head">
+          <div class="item-icon">${SF.animalIcon(a.type)}</div>
+          <div style="flex:1;min-width:0">
+            <div class="item-name">${a.name||'Unnamed'}</div>
+            <div class="item-sub">Tag: ${a.tagId} · ${a.breed||'Unknown breed'}</div>
+          </div>
+          <span class="badge badge-${a.healthStatus==='healthy'?'green':a.healthStatus==='sick'?'red':'yellow'}">${a.healthStatus}</span>
+        </div>
+        <div class="item-stats">
+          <div class="item-stat">
+            <div class="s-val">${a.gender==='female'?'♀':'♂'} ${a.gender}</div>
+            <div class="s-lbl">Gender</div>
+          </div>
+          <div class="item-stat">
+            <div class="s-val">${a.weight?a.weight+'kg':'—'}</div>
+            <div class="s-lbl">Weight</div>
+          </div>
+          <div class="item-stat">
+            <div class="s-val" style="font-size:11px">${a.currentValue?SF.currency(a.currentValue):'—'}</div>
+            <div class="s-lbl">Value</div>
+          </div>
+        </div>
+        <div class="item-actions">
+          <a href="livestock-view.html?id=${a.id}" class="btn btn-primary btn-sm" style="flex:1;justify-content:center">👁 View</a>
+          <a href="livestock-edit.html?id=${a.id}" class="btn btn-secondary btn-sm">✏</a>
+          <a href="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(location.origin+location.pathname.replace('livestock.html','')+'livestock-view.html?id='+a.id)}" target="_blank" class="btn btn-secondary btn-sm" title="QR">▣</a>
+        </div>
+      </div>`).join('')}
+    </div>`}
+    `;
+  }
+
+  function applyFilters() {
+    const s = document.getElementById('search')?.value.toLowerCase()||'';
+    const t = document.getElementById('typeF')?.value||'';
+    const h = document.getElementById('healthF')?.value||'';
+    render(s, t, h);
+  }
+
+  render();
+  </script>
+</body>
+</html>

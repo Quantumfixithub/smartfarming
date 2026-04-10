@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plot Details — SmartFarm</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body class="shell">
+  <div id="app-shell"></div>
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/nav.js"></script>
+  <script>
+  SF.requireLogin();
+  const id = +SF.param('id');
+  const p  = SF.getPlot(id);
+  if (!p) { window.location.href='crops.html'; }
+
+  buildNav(p.name, 'crops');
+
+  const pc = document.getElementById('page-content');
+
+  function financials() {
+    const inputs   = SF.getCropInputs(id);
+    const harvests = SF.getHarvests(id);
+    const cost     = inputs.reduce((s,i)=>s+(+i.cost||0),0);
+    const rev      = harvests.reduce((s,h)=>s+(+h.totalRevenue||0),0);
+    const yieldKg  = harvests.reduce((s,h)=>s+(+h.quantityKg||0),0);
+    return { inputs, harvests, cost, rev, profit:rev-cost, yieldKg, yieldPerHa: p.sizeHectare>0?+(yieldKg/p.sizeHectare).toFixed(1):0 };
+  }
+
+  function renderPage(activeTab='inputs') {
+    const f = financials();
+    const prog = SF.progress(p.plantingDate, p.expectedHarvest);
+    const sc = {planted:'badge-green',growing:'badge-blue',harvested:'badge-gray',preparing:'badge-yellow',fallow:'badge-gray'}[p.status]||'badge-gray';
+
+    pc.innerHTML = `
+    <div class="breadcrumb">
+      <a href="dashboard.html">Dashboard</a> <span>›</span>
+      <a href="crops.html">Crops</a> <span>›</span>
+      <span>${p.name}</span>
+    </div>
+
+    <!-- Plot Header -->
+    <div class="card" style="margin-bottom:18px;padding:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+        <div style="display:flex;align-items:center;gap:14px">
+          <div style="width:52px;height:52px;background:var(--green-50);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:28px">🌾</div>
+          <div>
+            <div style="font-size:18px;font-weight:800;color:var(--gray-800)">${p.name}</div>
+            <div style="font-size:13px;color:var(--gray-400)">${p.cropType} · ${p.sizeHectare}ha
+              ${p.soilType?' · '+p.soilType:''}
+              ${p.irrigationType?' · '+p.irrigationType:''}
+            </div>
+          </div>
+        </div>
+        <span class="badge ${sc}" style="font-size:13px;padding:6px 14px">${p.status}</span>
+      </div>
+      ${p.plantingDate&&p.expectedHarvest?`
+      <div style="margin-top:14px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--gray-400);margin-bottom:6px">
+          <span>🌱 ${SF.fmtDate(p.plantingDate)}</span>
+          <span>${prog}% complete</span>
+          <span>🌾 ${SF.fmtDate(p.expectedHarvest)}</span>
+        </div>
+        <div class="progress-bar" style="height:10px">
+          <div class="progress-fill" style="width:${prog}%"></div>
+        </div>
+      </div>`:''}
+    </div>
+
+    <!-- Financial Summary -->
+    <div class="stat-grid" style="margin-bottom:18px">
+      <div class="stat-card" style="text-align:center">
+        <div class="stat-value" style="color:var(--red-600)">${SF.currency(f.cost)}</div><div class="stat-label">Total Inputs</div>
+      </div>
+      <div class="stat-card" style="text-align:center">
+        <div class="stat-value" style="color:var(--green-600)">${SF.currency(f.rev)}</div><div class="stat-label">Revenue</div>
+      </div>
+      <div class="stat-card" style="text-align:center">
+        <div class="stat-value" style="color:${f.profit>=0?'var(--green-700)':'var(--red-600)'}">${SF.currency(f.profit)}</div><div class="stat-label">Net Profit</div>
+      </div>
+      <div class="stat-card" style="text-align:center">
+        <div class="stat-value">${f.yieldPerHa} kg</div><div class="stat-label">Yield / Ha</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="card">
+      <div class="tabs" style="padding:0 4px">
+        ${['inputs','harvests','add-input','add-harvest'].map((t,i)=>`
+          <button class="tab-btn ${activeTab===t?'active':''}" onclick="switchTab('${t}')">${['🧪 Inputs','🌾 Harvests','➕ Log Input','📦 Log Harvest'][i]}</button>
+        `).join('')}
+      </div>
+
+      <!-- Inputs -->
+      <div class="tab-pane ${activeTab==='inputs'?'active':''}" id="tab-inputs">
+        ${!f.inputs.length?'<div class="empty-state" style="padding:30px"><div class="empty-icon">🧪</div><p>No inputs recorded yet.</p></div>':`
+        <div class="table-wrap"><table>
+          <thead><tr><th>Date</th><th>Type</th><th>Product</th><th>Qty</th><th>Cost</th></tr></thead>
+          <tbody>
+            ${f.inputs.sort((a,b)=>new Date(b.dateApplied)-new Date(a.dateApplied)).map(i=>`
+            <tr>
+              <td>${SF.fmtDate(i.dateApplied)}</td>
+              <td><span class="badge badge-green">${i.inputType}</span></td>
+              <td><strong>${i.productName||'—'}</strong></td>
+              <td>${i.quantity?i.quantity+' '+i.unit:'—'}</td>
+              <td style="color:var(--red-600);font-weight:700">${SF.currency(i.cost)}</td>
+            </tr>`).join('')}
+          </tbody>
+          <tfoot><tr><td colspan="4" style="font-weight:700;text-align:right">Total:</td><td style="font-weight:800;color:var(--red-600)">${SF.currency(f.cost)}</td></tr></tfoot>
+        </table></div>`}
+      </div>
+
+      <!-- Harvests -->
+      <div class="tab-pane ${activeTab==='harvests'?'active':''}" id="tab-harvests">
+        ${!f.harvests.length?'<div class="empty-state" style="padding:30px"><div class="empty-icon">🌾</div><p>No harvests recorded yet.</p></div>':`
+        <div style="display:flex;flex-direction:column;gap:10px">
+          ${f.harvests.map(h=>`
+          <div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--green-50);border-radius:12px;border:1px solid var(--green-100)">
+            <div style="font-size:28px">🌾</div>
+            <div style="flex:1">
+              <div style="font-weight:700;font-size:14px">${(+h.quantityKg).toFixed(1)} kg harvested</div>
+              <div style="font-size:12px;color:var(--gray-400)">${SF.fmtDate(h.harvestDate)}${h.buyerName?' · '+h.buyerName:''}</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-weight:800;color:var(--green-700)">${SF.currency(h.totalRevenue)}</div>
+              <div style="font-size:11px;color:var(--gray-400)">${SF.currency(h.pricePerKg)}/kg</div>
+            </div>
+          </div>`).join('')}
+        </div>`}
+      </div>
+
+      <!-- Add Input -->
+      <div class="tab-pane ${activeTab==='add-input'?'active':''}" id="tab-add-input">
+        <div style="max-width:500px">
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">Input Type</label>
+              <select id="inType" class="form-select">
+                <option value="fertilizer">🌱 Fertilizer</option><option value="pesticide">🐛 Pesticide</option>
+                <option value="herbicide">🌿 Herbicide</option><option value="seed">🌾 Seed</option>
+                <option value="water">💧 Water</option><option value="labour">👷 Labour</option><option value="other">📦 Other</option>
+              </select>
+            </div>
+            <div class="form-group"><label class="form-label">Product Name</label>
+              <input type="text" id="inProduct" class="form-input" placeholder="e.g. NPK 15-15-15"></div>
+            <div class="form-group"><label class="form-label">Quantity</label>
+              <input type="number" id="inQty" class="form-input" step="0.01" placeholder="0.00"></div>
+            <div class="form-group"><label class="form-label">Unit</label>
+              <input type="text" id="inUnit" class="form-input" value="kg" placeholder="kg, L, bags"></div>
+            <div class="form-group"><label class="form-label">Cost (₦)</label>
+              <input type="number" id="inCost" class="form-input" step="0.01" value="0"></div>
+            <div class="form-group"><label class="form-label">Date Applied</label>
+              <input type="date" id="inDate" class="form-input" value="${new Date().toISOString().slice(0,10)}"></div>
+          </div>
+          <div class="form-group"><label class="form-label">Notes</label>
+            <textarea id="inNotes" class="form-textarea"></textarea></div>
+          <button onclick="saveInput()" class="btn btn-primary">💾 Save Input</button>
+        </div>
+      </div>
+
+      <!-- Add Harvest -->
+      <div class="tab-pane ${activeTab==='add-harvest'?'active':''}" id="tab-add-harvest">
+        <div style="max-width:500px">
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">Quantity (kg) <span class="req">*</span></label>
+              <input type="number" id="hQty" class="form-input" step="0.01" placeholder="0.00"></div>
+            <div class="form-group"><label class="form-label">Selling Price / kg (₦)</label>
+              <input type="number" id="hPrice" class="form-input" step="0.01" value="0" oninput="calcTotal()"></div>
+            <div class="form-group"><label class="form-label">Harvest Date</label>
+              <input type="date" id="hDate" class="form-input" value="${new Date().toISOString().slice(0,10)}"></div>
+            <div class="form-group"><label class="form-label">Buyer Name</label>
+              <input type="text" id="hBuyer" class="form-input" placeholder="Optional"></div>
+          </div>
+          <div class="form-group"><label class="form-label">Notes</label>
+            <textarea id="hNotes" class="form-textarea"></textarea></div>
+          <button onclick="saveHarvest()" class="btn btn-primary">💾 Record Harvest</button>
+        </div>
+      </div>
+    </div>
+    `;
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    document.getElementById('tab-'+tab).classList.add('active');
+  }
+
+  function saveInput() {
+    SF.addCropInput({
+      plotId:      id,
+      inputType:   document.getElementById('inType').value,
+      productName: document.getElementById('inProduct').value.trim(),
+      quantity:    +document.getElementById('inQty').value||0,
+      unit:        document.getElementById('inUnit').value.trim()||'kg',
+      cost:        +document.getElementById('inCost').value||0,
+      dateApplied: document.getElementById('inDate').value,
+      notes:       document.getElementById('inNotes').value.trim(),
+    });
+    SF.toast('Input saved!');
+    renderPage('inputs');
+  }
+
+  function saveHarvest() {
+    const qty = +document.getElementById('hQty').value||0;
+    if (!qty) { SF.toast('Enter quantity.','error'); return; }
+    SF.addHarvest({
+      plotId:     id,
+      quantityKg: qty,
+      pricePerKg: +document.getElementById('hPrice').value||0,
+      harvestDate:document.getElementById('hDate').value,
+      buyerName:  document.getElementById('hBuyer').value.trim(),
+      notes:      document.getElementById('hNotes').value.trim(),
+    });
+    // Update plot status
+    p.status = 'harvested';
+    SF.savePlot(p);
+    SF.toast('Harvest recorded!');
+    renderPage('harvests');
+  }
+
+  renderPage();
+  </script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="refresh" content="0;url=login.html">
+  <title>SmartFarm</title>
+  <script src="assets/js/app.js"></script>
+  <script>
+    SF.seedIfEmpty();
+    window.location.href = SF.session() ? 'dashboard.html' : 'login.html';
+  </script>
+</head>
+<body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#14532d;color:#fff">
+  <div style="text-align:center">
+    <div style="font-size:48px;margin-bottom:12px">🌾</div>
+    <p>Loading SmartFarm…</p>
+  </div>
+</body>
+</html>

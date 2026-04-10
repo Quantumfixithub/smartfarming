@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — SmartFarm</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body class="auth-body">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">🌾</div>
+      <h1>SmartFarm</h1>
+      <p>Smart Farm Management System</p>
+    </div>
+
+    <h2>Welcome Back 👋</h2>
+
+    <div id="error-msg" class="alert alert-error" style="display:none"></div>
+
+    <div class="form-group">
+      <label class="form-label">Email Address</label>
+      <input type="email" id="email" class="form-input" placeholder="admin@smartfarm.com" value="admin@smartfarm.com">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input type="password" id="password" class="form-input" placeholder="Enter password" value="password">
+    </div>
+
+    <button onclick="doLogin()" class="btn btn-primary btn-block" style="margin-top:4px">
+      ↩ Sign In
+    </button>
+
+    <p style="text-align:center;margin-top:16px;font-size:13px;color:var(--gray-400)">
+      No account? <a href="register.html" style="color:var(--green-600);font-weight:700">Register here</a>
+    </p>
+
+    <div style="margin-top:18px;background:var(--green-50);border-radius:10px;padding:12px;text-align:center;font-size:12px;color:var(--gray-500)">
+      <strong>Demo:</strong> admin@smartfarm.com / password
+    </div>
+  </div>
+
+  <script src="assets/js/app.js"></script>
+  <script>
+    // Already logged in? go to dashboard
+    if (SF.session()) window.location.href = 'dashboard.html';
+
+    function doLogin() {
+      const email    = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const errEl    = document.getElementById('error-msg');
+      errEl.style.display = 'none';
+
+      if (!email || !password) {
+        errEl.textContent = 'Please fill in both fields.';
+        errEl.style.display = 'flex';
+        return;
+      }
+      const result = SF.login(email, password);
+      if (result.ok) {
+        window.location.href = 'dashboard.html';
+      } else {
+        errEl.textContent = result.msg;
+        errEl.style.display = 'flex';
+      }
+    }
+
+    document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  </script>
+</body>
+</html>

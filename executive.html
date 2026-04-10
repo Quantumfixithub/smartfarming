@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Executive Dashboard — SmartFarm</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="shell">
+  <div id="app-shell"></div>
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/nav.js"></script>
+  <script>
+  SF.requireLogin();
+  buildNav('Executive Dashboard', 'executive');
+
+  const pc = document.getElementById('page-content');
+  const animals  = SF.getAnimals();
+  const plots    = SF.getPlots();
+  const trans    = SF.getTransactions();
+  const allInputs   = SF.get('cropInputs');
+  const allHarvests = SF.get('harvests');
+
+  // Livestock KPIs
+  const liveValue   = animals.reduce((s,a)=>s+(+a.currentValue||0),0);
+  const liveCost    = animals.reduce((s,a)=>s+(+a.purchasePrice||0),0);
+  const sick        = animals.filter(a=>a.healthStatus==='sick').length;
+  const deceased    = animals.filter(a=>a.healthStatus==='deceased').length;
+  const mortalityR  = animals.length>0?+(deceased/animals.length*100).toFixed(1):0;
+  const liveROI     = liveCost>0?+((liveValue-liveCost)/liveCost*100).toFixed(1):0;
+
+  // Crop KPIs
+  const myInputCost = plots.reduce((s,p)=>s+allInputs.filter(i=>i.plotId===p.id).reduce((ss,i)=>ss+(+i.cost||0),0),0);
+  const myHarvRev   = plots.reduce((s,p)=>s+allHarvests.filter(h=>h.plotId===p.id).reduce((ss,h)=>ss+(+h.totalRevenue||0),0),0);
+  const myHarvKg    = plots.reduce((s,p)=>s+allHarvests.filter(h=>h.plotId===p.id).reduce((ss,h)=>ss+(+h.quantityKg||0),0),0);
+  const totalHa     = plots.reduce((s,p)=>s+(+p.sizeHectare||0),0);
+  const yieldPerHa  = totalHa>0?+(myHarvKg/totalHa).toFixed(1):0;
+  const cropProfit  = myHarvRev - myInputCost;
+
+  // Financial
+  const totalIncome  = trans.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const totalExpense = trans.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const netProfit    = totalIncome - totalExpense;
+  const totalFarmVal = liveValue + myHarvRev;
+
+  // Monthly data (12 months)
+  const mLabels=[], mInc=[], mExp=[];
+  for(let i=11;i>=0;i--) {
+    const d=new Date(); d.setMonth(d.getMonth()-i);
+    const ym=d.toISOString().slice(0,7);
+    mLabels.push(d.toLocaleString('default',{month:'short',year:'2-digit'}));
+    mInc.push(trans.filter(t=>t.type==='income'&&t.date?.startsWith(ym)).reduce((s,t)=>s+t.amount,0));
+    mExp.push(trans.filter(t=>t.type==='expense'&&t.date?.startsWith(ym)).reduce((s,t)=>s+t.amount,0));
+  }
+
+  // Animal type breakdown
+  const typeMap={};
+  animals.forEach(a=>{typeMap[a.type]=(typeMap[a.type]||0)+1;});
+
+  pc.innerHTML = `
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+    <div>
+      <h2 style="font-size:22px;font-weight:800">📊 Executive Dashboard</h2>
+      <p style="color:var(--gray-400);font-size:13px;margin-top:2px">Complete farm intelligence — ${new Date().toLocaleString('default',{month:'long',year:'numeric'})}</p>
+    </div>
+    <a href="transactions.html" class="btn btn-primary">✚ Add Transaction</a>
+  </div>
+
+  <!-- Top KPIs -->
+  <div class="stat-grid" style="margin-bottom:18px">
+    <div class="stat-card">
+      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
+        <span style="font-size:22px">💰</span>
+        <span class="badge ${netProfit>=0?'badge-green':'badge-red'}">${netProfit>=0?'PROFIT':'LOSS'}</span>
+      </div>
+      <div class="stat-value" style="color:${netProfit>=0?'var(--green-600)':'var(--red-600)'}">${SF.currency(netProfit)}</div>
+      <div class="stat-label">Net Farm Profit</div>
+    </div>
+    <div class="stat-card">
+      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
+        <span style="font-size:22px">🏪</span><span class="badge badge-blue">VALUE</span>
+      </div>
+      <div class="stat-value">${SF.currency(totalFarmVal)}</div>
+      <div class="stat-label">Total Farm Value</div>
+    </div>
+    <div class="stat-card">
+      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
+        <span style="font-size:22px">📈</span>
+        <span class="badge ${liveROI>=0?'badge-green':'badge-red'}">ROI</span>
+      </div>
+      <div class="stat-value" style="color:${liveROI>=0?'var(--green-600)':'var(--red-600)'}">${liveROI}%</div>
+      <div class="stat-label">Livestock ROI</div>
+    </div>
+    <div class="stat-card">
+      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
+        <span style="font-size:22px">💀</span>
+        <span class="badge ${mortalityR>5?'badge-red':'badge-green'}">RATE</span>
+      </div>
+      <div class="stat-value" style="color:${mortalityR>5?'var(--red-600)':'var(--gray-800)'}">${mortalityR}%</div>
+      <div class="stat-label">Mortality Rate</div>
+    </div>
+  </div>
+
+  <!-- Mini stats -->
+  <div class="stat-grid" style="grid-template-columns:repeat(6,1fr);margin-bottom:18px">
+    ${[['🐄',animals.length,'Animals'],['✅',animals.length-sick,'Healthy'],['🤒',sick,'Sick'],
+       ['🌱',plots.length,'Plots'],[`📐`,totalHa.toFixed(1)+'ha','Hectares'],['⚖',yieldPerHa+' kg','Yield/ha']
+      ].map(([ic,v,l])=>`<div class="stat-card" style="text-align:center;padding:12px">
+        <div style="font-size:20px;margin-bottom:4px">${ic}</div>
+        <div style="font-size:16px;font-weight:800;color:var(--gray-800)">${v}</div>
+        <div style="font-size:10px;color:var(--gray-400)">${l}</div>
+      </div>`).join('')}
+  </div>
+
+  <!-- Charts -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px">
+    <div class="card"><div class="card-header"><h3>📅 12-Month Financial Trend</h3></div>
+      <div class="card-body"><canvas id="annualChart" height="200"></canvas></div></div>
+    <div class="card"><div class="card-header"><h3>💸 Income vs Expenses</h3></div>
+      <div class="card-body" style="display:flex;align-items:center;gap:16px">
+        <canvas id="doughnut" height="180" style="max-width:180px"></canvas>
+        <div style="display:flex;flex-direction:column;gap:10px;flex:1">
+          <div style="background:var(--green-50);border-radius:10px;padding:12px">
+            <div style="font-size:11px;color:var(--gray-400)">Income</div>
+            <div style="font-size:16px;font-weight:800;color:var(--green-700)">${SF.currency(totalIncome)}</div>
+          </div>
+          <div style="background:#fef2f2;border-radius:10px;padding:12px">
+            <div style="font-size:11px;color:var(--gray-400)">Expenses</div>
+            <div style="font-size:16px;font-weight:800;color:var(--red-600)">${SF.currency(totalExpense)}</div>
+          </div>
+          <div style="background:var(--gray-50);border-radius:10px;padding:12px">
+            <div style="font-size:11px;color:var(--gray-400)">Net</div>
+            <div style="font-size:16px;font-weight:800;color:${netProfit>=0?'var(--green-700)':'var(--red-600)'}">${SF.currency(netProfit)}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Crop Performance + Circular Economy -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px">
+    <div class="card">
+      <div class="card-header"><h3>🌾 Crop Performance</h3></div>
+      <div class="card-body" style="padding:0">
+        ${[['Total Plots',plots.length],['Total Hectares',totalHa.toFixed(2)+' ha'],
+           ['Input Costs',SF.currency(myInputCost)],['Revenue',SF.currency(myHarvRev)],
+           ['Crop Profit',SF.currency(cropProfit)],['Yield',myHarvKg.toFixed(1)+' kg'],
+           ['Yield/Ha',yieldPerHa+' kg/ha']
+          ].map(([l,v])=>`<div style="display:flex;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--gray-50)">
+            <span style="font-size:13px;color:var(--gray-500)">${l}</span>
+            <span style="font-size:13px;font-weight:700">${v}</span>
+          </div>`).join('')}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>♻ Circular Economy</h3></div>
+      <div class="card-body">
+        <div class="eco-grid">
+          <div class="eco-card"><div class="eco-icon">🌱→🐄</div><div class="eco-title">Crop Waste as Feed</div><div class="eco-desc">Use crop by-products to reduce feed costs.</div></div>
+          <div class="eco-card"><div class="eco-icon">🐄→🌱</div><div class="eco-title">Manure Fertilizer</div><div class="eco-desc">Livestock manure cuts crop input costs.</div></div>
+          <div class="eco-card"><div class="eco-icon">💧→🌾</div><div class="eco-title">Water Recycling</div><div class="eco-desc">Redirect runoff from livestock to irrigate crops.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent transactions -->
+  <div class="card">
+    <div class="card-header">
+      <h3>Recent Transactions</h3>
+      <a href="transactions.html" style="font-size:12px;color:var(--green-600);font-weight:700;text-decoration:none">View All →</a>
+    </div>
+    <div>
+      ${!trans.length?'<div class="empty-state" style="padding:30px"><p>No transactions yet.</p></div>':
+        trans.sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,8).map(t=>`
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--gray-50)">
+          <div style="width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;background:${t.type==='income'?'var(--green-100)':'var(--red-100)'}">
+            ${t.type==='income'?'↓':'↑'}
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.description||t.category}</div>
+            <div style="font-size:11px;color:var(--gray-400)">${SF.fmtDate(t.date)} · ${t.category}</div>
+          </div>
+          <span style="font-weight:800;font-size:13px;color:${t.type==='income'?'var(--green-700)':'var(--red-600)'}">
+            ${t.type==='income'?'+':'-'}${SF.currency(t.amount)}
+          </span>
+        </div>`).join('')}
+    </div>
+  </div>
+  `;
+
+  // Render charts
+  new Chart(document.getElementById('annualChart').getContext('2d'),{
+    type:'line',
+    data:{ labels:mLabels, datasets:[
+      {label:'Income',data:mInc,borderColor:'#16a34a',backgroundColor:'rgba(22,163,74,.1)',fill:true,tension:.4,borderWidth:2},
+      {label:'Expense',data:mExp,borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,.1)',fill:true,tension:.4,borderWidth:2}
+    ]},
+    options:{ responsive:true, scales:{ y:{beginAtZero:true,ticks:{callback:v=>'₦'+v.toLocaleString()}} } }
+  });
+
+  new Chart(document.getElementById('doughnut').getContext('2d'),{
+    type:'doughnut',
+    data:{ labels:['Income','Expenses'], datasets:[{data:[totalIncome,totalExpense],backgroundColor:['#16a34a','#ef4444'],borderWidth:0}] },
+    options:{ responsive:true, plugins:{legend:{position:'bottom'}}, cutout:'65%' }
+  });
+  </script>
+</body>
+</html>
